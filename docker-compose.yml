@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: domtom-connect_db
+    environment:
+      POSTGRES_DB: domtom-connect_db
+      POSTGRES_USER: domtom-connect_user
+      POSTGRES_PASSWORD: domtom-connect_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: domtom-connect_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis_pass
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
