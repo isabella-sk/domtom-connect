@@ -9,6 +9,7 @@ import { usersRouter } from "./modules/users/users.router";
 import { postsRouter } from "./modules/posts/posts.router";
 import { scamRouter } from "./modules/scam/scam.router";
 import { errorMiddleware } from "./middlewares/error.middleware";
+import { chatRouter } from "./modules/chat/chat.router";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/scam", scamRouter);
+app.use("/api/chat", chatRouter);
 
 app.get("/health", (_, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
