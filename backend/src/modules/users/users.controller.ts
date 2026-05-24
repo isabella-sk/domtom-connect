@@ -20,7 +20,8 @@ export const getUserById = async (
   next: NextFunction,
 ) => {
   try {
-    const user = await usersService.getUserById(req.params.id);
+    const userId = req.params.id as string;
+    const user = await usersService.getUserById(userId);
     res.status(200).json(user);
   } catch (err) {
     next(err);

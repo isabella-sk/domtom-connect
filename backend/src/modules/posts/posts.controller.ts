@@ -21,7 +21,8 @@ export const getPostById = async (
   next: NextFunction,
 ) => {
   try {
-    const post = await postsService.getPostById(req.params.id);
+    const postId = req.params.id as string; // ← FIX
+    const post = await postsService.getPostById(postId);
     res.status(200).json(post);
   } catch (err) {
     next(err);
@@ -47,18 +48,22 @@ export const updatePost = async (
   next: NextFunction,
 ) => {
   try {
+    const postId = req.params.id as string; // ← FIX
+
     const user = await import("../../config/database").then((m) =>
       m.prisma.user.findUnique({
         where: { id: req.userId! },
         select: { isAdmin: true },
       }),
     );
+
     const post = await postsService.updatePost(
-      req.params.id,
+      postId,
       req.body,
       req.userId!,
       user?.isAdmin ?? false,
     );
+
     res.status(200).json(post);
   } catch (err) {
     next(err);
@@ -71,17 +76,17 @@ export const deletePost = async (
   next: NextFunction,
 ) => {
   try {
+    const postId = req.params.id as string; // ← FIX
+
     const user = await import("../../config/database").then((m) =>
       m.prisma.user.findUnique({
         where: { id: req.userId! },
         select: { isAdmin: true },
       }),
     );
-    await postsService.deletePost(
-      req.params.id,
-      req.userId!,
-      user?.isAdmin ?? false,
-    );
+
+    await postsService.deletePost(postId, req.userId!, user?.isAdmin ?? false);
+
     res.status(204).send();
   } catch (err) {
     next(err);
