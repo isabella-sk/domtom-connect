@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Register } from "./pages/Auth/Register";
 import { Login } from "./pages/Auth/Login";
 import { Dashboard } from "./pages/Dashboard";
+import { Guides } from "./pages/Guides";
+import { Scams } from "./pages/Scams";
 import { PrivateRoute } from "./components/layout/PrivateRoute";
 
 function App() {
@@ -21,6 +23,22 @@ function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/guides"
+          element={
+            <PrivateRoute>
+              <Guides />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/scams"
+          element={
+            <PrivateRoute>
+              <Scams />
             </PrivateRoute>
           }
         />
