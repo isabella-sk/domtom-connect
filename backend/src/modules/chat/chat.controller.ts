@@ -22,7 +22,7 @@ export const getMessages = async (
   try {
     const page = parseInt(req.query.page as string) || 1;
     const msgs = await chatService.getMessages(
-      req.params.id,
+      req.params.id as string,
       req.userId!,
       page,
     );
