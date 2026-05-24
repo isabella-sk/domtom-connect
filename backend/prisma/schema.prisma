@@ -1,11 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
   previewFeatures = ["driverAdapters"]
 }
 
@@ -31,6 +29,8 @@ model User {
   updatedAt       DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+  posts         Post[]
+  scamReports   ScamReport[]
 
   @@map("users")
 }
@@ -45,4 +45,34 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  category  String
+  isPinned  Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("posts")
+}
+
+model ScamReport {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String
+  status      String   @default("pending")
+  reporterId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@map("scam_reports")
 }

@@ -5,6 +5,9 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./modules/auth/auth.router";
+import { usersRouter } from "./modules/users/users.router";
+import { postsRouter } from "./modules/posts/posts.router";
+import { scamRouter } from "./modules/scam/scam.router";
 import { errorMiddleware } from "./middlewares/error.middleware";
 
 const app = express();
@@ -23,6 +26,10 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 
 app.use("/api/auth", authRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/posts", postsRouter);
+app.use("/api/scam", scamRouter);
+
 app.get("/health", (_, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
 );
