@@ -5,6 +5,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Guides } from "./pages/Guides";
 import { Scams } from "./pages/Scams";
 import { PrivateRoute } from "./components/layout/PrivateRoute";
+import { Chat } from "./pages/Chat";
 
 function App() {
   return (
@@ -39,6 +40,14 @@ function App() {
           element={
             <PrivateRoute>
               <Scams />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            <PrivateRoute>
+              <Chat />
             </PrivateRoute>
           }
         />
