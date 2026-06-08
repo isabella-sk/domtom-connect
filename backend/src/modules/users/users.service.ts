@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import { redisClient } from "../../config/redis";
 import type { UpdateProfileDto } from "./users.schema";
+import { uploadToCloudinary } from "../../utils/cloudinary";
 
 const CACHE_KEY = "cache:users:all";
 const CACHE_TTL = 300; // 5 min
@@ -182,4 +183,98 @@ export const getFollowing = async (userId: string) => {
     orderBy: { createdAt: "desc" },
   });
   return follows.map((f) => f.following);
+};
+
+type NearbyUser = {
+  id: string;
+  username: string;
+  avatarUrl: string | null;
+  originTerritory: string;
+  currentCity: string | null;
+  latitude: number;
+  longitude: number;
+  distance: number;
+};
+
+export const getNearbyUsers = async (
+  lat: number,
+  lng: number,
+  radius = 50,
+): Promise<NearbyUser[]> => {
+  // Requête SQL brute avec la formule Haversine
+  // LEAST(1.0, ...) prévient les erreurs acos sur valeurs > 1
+  const users = await prisma.$queryRaw<NearbyUser[]>`
+    SELECT
+      id,
+      username,
+      "avatarUrl",
+      "originTerritory",
+      "currentCity",
+      latitude,
+      longitude,
+      (
+        6371 * acos(
+          LEAST(1.0,
+            cos(radians(${lat})) * cos(radians(latitude))
+            * cos(radians(longitude) - radians(${lng}))
+            + sin(radians(${lat})) * sin(radians(latitude))
+          )
+        )
+      ) AS distance
+    FROM users
+    WHERE "showOnMap" = true
+      AND latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND (
+        6371 * acos(
+          LEAST(1.0,
+            cos(radians(${lat})) * cos(radians(latitude))
+            * cos(radians(longitude) - radians(${lng}))
+            + sin(radians(${lat})) * sin(radians(latitude))
+          )
+        )
+      ) < ${radius}
+    ORDER BY distance
+    LIMIT 100
+  `;
+
+  return users;
+};
+
+// Users affichés sur la carte (showOnMap = true, avec coordonnées)
+export const getMapUsers = async () => {
+  return prisma.user.findMany({
+    where: {
+      showOnMap: true,
+      latitude: { not: null },
+      longitude: { not: null },
+    },
+    select: {
+      id: true,
+      username: true,
+      avatarUrl: true,
+      originTerritory: true,
+      currentCity: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+};
+
+export const uploadAvatar = async (
+  userId: string,
+  file: Express.Multer.File,
+) => {
+  const url = await uploadToCloudinary(file);
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { avatarUrl: url },
+    select: { id: true, avatarUrl: true },
+  });
+
+  // Invalide le cache users
+  await redisClient.del(CACHE_KEY);
+
+  return user;
 };
