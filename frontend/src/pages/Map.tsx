@@ -5,8 +5,8 @@ import "leaflet/dist/leaflet.css";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-// Fix nécessaire avec Vite : les icônes Leaflet ne chargent pas sans ça
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)
+  ._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",

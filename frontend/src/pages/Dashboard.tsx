@@ -1,20 +1,30 @@
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
-const QUICK_LINKS = [
-  {
-    label: "Guides démarches",
-    path: "/guides",
-    desc: "CAF, logement, santé...",
-  },
-  { label: "Arnaques signalées", path: "/scams", desc: "Protège-toi" },
-  { label: "Carte étudiants", path: "/map", desc: "Trouve des contacts" },
-  { label: "Chat", path: "/chat", desc: "Messagerie temps réel" },
-];
-
 export const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const QUICK_LINKS = [
+    {
+      label: "Guides démarches",
+      path: "/guides",
+      desc: "CAF, logement, santé...",
+    },
+    { label: "Arnaques signalées", path: "/scams", desc: "Protège-toi" },
+    {
+      label: "Carte étudiants",
+      path: "/map",
+      desc: "Trouve des contacts près de toi",
+    },
+    { label: "Chat", path: "/chat", desc: "Messagerie temps réel" },
+    {
+      label: "Mon profil",
+      path: `/profile/${user?.id}`,
+      desc: "Abonnés, publications",
+    },
+    { label: "Paramètres", path: "/settings", desc: "Modifier ton profil" },
+  ];
 
   const handleLogout = async () => {
     await logout();
