@@ -6,6 +6,9 @@ import { Guides } from "./pages/Guides";
 import { Scams } from "./pages/Scams";
 import { PrivateRoute } from "./components/layout/PrivateRoute";
 import { Chat } from "./pages/Chat";
+import { Map } from "./pages/Map";
+import { Profile } from "./pages/Profile";
+import { Settings } from "./pages/Settings";
 
 function App() {
   return (
@@ -48,6 +51,31 @@ function App() {
           element={
             <PrivateRoute>
               <Chat />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/map"
+          element={
+            <PrivateRoute>
+              <Map />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile/:id"
+          element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Settings />
             </PrivateRoute>
           }
         />

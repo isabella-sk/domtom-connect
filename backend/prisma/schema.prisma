@@ -32,7 +32,9 @@ model User {
   posts         Post[]
   scamReports   ScamReport[]
   conversations ConversationMember[]
-  sentMessages  Message[] 
+  sentMessages  Message[]
+  followers     Follow[] @relation("UserFollowers")
+  following     Follow[] @relation("UserFollowing")
 
   @@map("users")
 }
@@ -117,4 +119,18 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   // celui qui SUIT
+  followingId String   // celui qui EST SUIVI
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  // Un user ne peut suivre quelqu'un qu'une seule fois
+  @@unique([followerId, followingId])
+  @@map("follows")
 }

@@ -6,6 +6,7 @@ export interface User {
   bio?: string;
   originTerritory: string;
   currentCity?: string;
+  showOnMap: boolean;
   isAdmin: boolean;
   createdAt: string;
 }
