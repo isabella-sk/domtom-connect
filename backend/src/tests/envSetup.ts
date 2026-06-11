@@ -1,0 +1,9 @@
+process.env.NODE_ENV = "test";
+process.env.DATABASE_URL =
+  "postgresql://outremer_user:outremer_pass@localhost:5433/outremer_test";
+process.env.REDIS_URL = "redis://:redis_pass@localhost:6379";
+process.env.JWT_ACCESS_SECRET = "test_access_secret_long_pour_jest";
+process.env.JWT_REFRESH_SECRET = "test_refresh_secret_long_pour_jest";
+process.env.JWT_ACCESS_EXPIRES = "15m";
+process.env.JWT_REFRESH_EXPIRES = "7d";
+process.env.FRONTEND_URL = "http://localhost:5173";

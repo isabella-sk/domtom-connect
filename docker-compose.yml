@@ -22,5 +22,15 @@ services:
     command: redis-server --requirepass redis_pass
     restart: unless-stopped
 
+  db_test:
+    image: postgres:16-alpine
+    container_name: outremer_db_test
+    environment:
+      POSTGRES_DB: outremer_test
+      POSTGRES_USER: outremer_user
+      POSTGRES_PASSWORD: outremer_pass
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
 volumes:
   postgres_data:
