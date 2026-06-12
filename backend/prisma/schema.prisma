@@ -35,6 +35,7 @@ model User {
   sentMessages  Message[]
   followers     Follow[] @relation("UserFollowers")
   following     Follow[] @relation("UserFollowing")
+  tips          Tip[]
 
   @@map("users")
 }
@@ -127,10 +128,25 @@ model Follow {
   followingId String   // celui qui EST SUIVI
   createdAt   DateTime @default(now())
 
-  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
-  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   // Un user ne peut suivre quelqu'un qu'une seule fois
   @@unique([followerId, followingId])
   @@map("follows")
+}
+
+model Tip {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  type       String   @default("tip")  // "tip" ou "testimonial"
+  authorId   String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("tips")
 }

@@ -34,32 +34,51 @@ export const Profile = () => {
 
   const isOwn = id === currentUser?.id;
 
+  // Fetch profil
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
+
     api
-      .get(`/users/${id}`)
+      .get(`/users/${id}?t=${Date.now()}`)
       .then((r) => {
-        setProfile(r.data);
-        setLoading(false);
+        if (!cancelled) {
+          setProfile(r.data);
+          setLoading(false);
+        }
       })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
+  // Fetch followers/following
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
+
     api
-      .get(`/users/${id}/${tab}`)
+      .get(`/users/${id}/${tab}?t=${Date.now()}`)
       .then((r) => {
-        setList(r.data);
-        setListLoading(false);
+        if (!cancelled) {
+          setList(r.data);
+          setListLoading(false);
+        }
       })
-      .catch((err) => {
-        console.error(err);
-        setListLoading(false);
+      .catch(() => {
+        if (!cancelled) {
+          setList([]);
+          setListLoading(false);
+        }
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, tab]);
 
   const handleFollow = async () => {
@@ -68,34 +87,18 @@ export const Profile = () => {
     try {
       if (profile.isFollowing) {
         await api.delete(`/users/${profile.id}/follow`);
-        setProfile((p) =>
-          p
-            ? {
-                ...p,
-                isFollowing: false,
-                _count: { ...p._count, followers: p._count.followers - 1 },
-              }
-            : p,
-        );
       } else {
         await api.post(`/users/${profile.id}/follow`);
-        setProfile((p) =>
-          p
-            ? {
-                ...p,
-                isFollowing: true,
-                _count: { ...p._count, followers: p._count.followers + 1 },
-              }
-            : p,
-        );
       }
+      // Refetch le profil depuis le backend - source de vérité
+      const r = await api.get(`/users/${profile.id}?t=${Date.now()}`);
+      setProfile(r.data);
     } catch (err) {
       console.error(err);
     } finally {
       setFollowLoading(false);
     }
   };
-
   const startConversation = async () => {
     if (!profile) return;
     try {

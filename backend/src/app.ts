@@ -6,10 +6,12 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./modules/auth/auth.router";
 import { usersRouter } from "./modules/users/users.router";
+import { adminRouter } from "./modules/admin/admin.router";
 import { postsRouter } from "./modules/posts/posts.router";
 import { scamRouter } from "./modules/scam/scam.router";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import { chatRouter } from "./modules/chat/chat.router";
+import { tipsRouter } from "./modules/tips/tips.router";
 
 const app = express();
 
@@ -28,9 +30,11 @@ app.use("/api/auth/register", authLimiter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/scam", scamRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/tips", tipsRouter);
 
 app.get("/health", (_, res) =>
   res.json({ status: "ok", timestamp: new Date() }),
