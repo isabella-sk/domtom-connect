@@ -9,16 +9,21 @@ const config: Config = {
   // → définit les variables d'environnement pour la BDD test
   setupFiles: ["./src/tests/envSetup.ts"],
 
-  // setupFilesAfterFramework : s'exécute après Jest, avant chaque fichier
-  // → ici les hooks beforeAll/afterEach/afterAll
-  setupFilesAfterFramework: ["./src/tests/setup.ts"],
+  // setupFilesAfterEnv : s'exécute APRÈS l'installation du framework Jest,
+  // avant chaque fichier de test > c'est ici que vivent les hooks globaux
+  setupFilesAfterEnv: ["./src/tests/setup.ts"],
 
+  // On mesure la couverture uniquement sur le périmètre réellement testé.
+  // Chat (WebSocket), admin (CRUD complet), cloudinary.ts et geocoding.service.ts
+  // sont volontairement exclus : hors périmètre, testés manuellement.
   collectCoverageFrom: [
-    "src/**/*.ts",
-    "!src/server.ts",
-    "!src/generated/**",
-    "!src/tests/**",
-    "!src/config/**",
+    "src/modules/auth/**/*.ts",
+    "src/modules/posts/**/*.ts",
+    "src/modules/scam/**/*.ts",
+    "src/modules/tips/**/*.ts",
+    "src/modules/users/**/*.ts",
+    "src/middlewares/**/*.ts",
+    "src/utils/jwt.ts",
   ],
 
   coverageThreshold: {
