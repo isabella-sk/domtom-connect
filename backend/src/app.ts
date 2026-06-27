@@ -24,6 +24,10 @@ const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: { message: "Trop de tentatives. Réessaie dans 1h." },
+  // Désactivé en test : la suite dépasse facilement 10 req/h cumulées
+  // (inscriptions + connexions dans différents it()), ce qui provoquerait
+  // des 429 aléatoires sur des tests par ailleurs valides.
+  skip: () => process.env.NODE_ENV === "test",
 });
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
