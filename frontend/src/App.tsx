@@ -1,23 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Landing } from "./pages/Landing";
 import { Register } from "./pages/Auth/Register";
 import { Login } from "./pages/Auth/Login";
 import { Dashboard } from "./pages/Dashboard";
-import { Guides } from "./pages/Guides";
-import { Scams } from "./pages/Scams";
-import { PrivateRoute } from "./components/layout/PrivateRoute";
+import { Guides } from "./pages/guides/Guides";
+import { GuideDetails } from "./pages/guides/GuideDetails";
+import { Scams } from "./pages/scams/Scams";
+import { ScamDetails } from "./pages/scams/ScamDetails";
+import { Tips } from "./pages/tips/Tips";
+import { TipDetails } from "./pages/tips/TipDetails";
 import { Chat } from "./pages/Chat";
 import { Map } from "./pages/Map";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { PrivateRoute } from "./components/layout/PrivateRoute";
+import { AdminRoute } from "./components/layout/AdminRoute";
+import { About } from "./pages/About";
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Redirection de / vers /login par défaut */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-
-        {/* Routes publiques */}
+        {/* Publiques */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/about" element={<About />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 
@@ -30,6 +37,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/guides"
           element={
@@ -39,6 +47,15 @@ function App() {
           }
         />
         <Route
+          path="/guides/:id"
+          element={
+            <PrivateRoute>
+              <GuideDetails />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
           path="/scams"
           element={
             <PrivateRoute>
@@ -46,6 +63,32 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/scams/:id"
+          element={
+            <PrivateRoute>
+              <ScamDetails />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/tips"
+          element={
+            <PrivateRoute>
+              <Tips />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/tips/:id"
+          element={
+            <PrivateRoute>
+              <TipDetails />
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/chat"
           element={
@@ -80,11 +123,18 @@ function App() {
           }
         />
 
-        {/* 404 */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Admin */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
