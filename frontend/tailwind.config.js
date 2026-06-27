@@ -8,7 +8,9 @@ export default {
         secondary: "#1FA4A9",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        //sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ['"Baloo 2"', "system-ui", "sans-serif"],
+        baloo: ['"Baloo 2"', "sans-serif"],
       },
     },
   },
