@@ -2,9 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -23,6 +22,7 @@ model User {
   latitude        Float?
   longitude       Float?
   showOnMap       Boolean  @default(false)
+  mapVisibility   String   @default("everyone") // "everyone" | "followers" | "none"
   isVerified      Boolean  @default(false)
   isAdmin         Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -52,6 +52,7 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// Post Guides
 model Post {
   id        String   @id @default(uuid())
   title     String
@@ -62,10 +63,26 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments PostAttachment[]
 
   @@map("posts")
 }
+
+// Post Guides
+model PostAttachment {
+  id        String   @id @default(uuid())
+  postId    String
+  type      String   // "image" | "document" | "link"
+  url       String
+  name      String?
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_attachments")
+}
+
 
 model ScamReport {
   id          String   @id @default(uuid())
@@ -77,9 +94,54 @@ model ScamReport {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter    User             @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  attachments ScamAttachment[]
 
   @@map("scam_reports")
+}
+
+// Pièces jointes d'un signalement (images, documents, liens)
+model ScamAttachment {
+  id           String   @id @default(uuid())
+  scamReportId String
+  type         String   // "image" | "document" | "link"
+  url          String   // URL Cloudinary ou lien externe
+  name         String?  // nom original du fichier ou label du lien
+  createdAt    DateTime @default(now())
+
+  scamReport ScamReport @relation(fields: [scamReportId], references: [id], onDelete: Cascade)
+
+  @@map("scam_attachments")
+}
+
+model Tip {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  type       String   @default("tip")
+  authorId   String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments TipAttachment[]
+
+  @@map("tips")
+}
+
+// Pièces jointes d'un tip (images, documents, liens)
+model TipAttachment {
+  id        String   @id @default(uuid())
+  tipId     String
+  type      String   // "image" | "document" | "link"
+  url       String
+  name      String?
+  createdAt DateTime @default(now())
+
+  tip Tip @relation(fields: [tipId], references: [id], onDelete: Cascade)
+
+  @@map("tip_attachments")
 }
 
 model Conversation {
@@ -96,10 +158,13 @@ model Conversation {
 }
 
 model ConversationMember {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   userId         String
   conversationId String
-  joinedAt       DateTime @default(now())
+  joinedAt       DateTime  @default(now())
+  // Soft-delete : si non null, l'user a "supprimé" la conv de son côté
+  // Il ne verra plus les messages antérieurs à cette date
+  deletedAt      DateTime?
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -114,6 +179,7 @@ model Message {
   senderId       String
   conversationId String
   readAt         DateTime?
+  deletedForIds  String[]  @default([]) // Soft-delete : IDs des users qui ont supprimé ce message pour eux
   createdAt      DateTime  @default(now())
 
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -124,8 +190,8 @@ model Message {
 
 model Follow {
   id          String   @id @default(uuid())
-  followerId  String   // celui qui SUIT
-  followingId String   // celui qui EST SUIVI
+  followerId  String
+  followingId String
   createdAt   DateTime @default(now())
 
   follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
@@ -134,19 +200,4 @@ model Follow {
   // Un user ne peut suivre quelqu'un qu'une seule fois
   @@unique([followerId, followingId])
   @@map("follows")
-}
-
-model Tip {
-  id         String   @id @default(uuid())
-  title      String
-  content    String
-  type       String   @default("tip")  // "tip" ou "testimonial"
-  authorId   String
-  isApproved Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  @@map("tips")
 }
