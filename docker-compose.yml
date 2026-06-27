@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: domtom-connect_db
     environment:
-      POSTGRES_DB: domtom-connect_db
-      POSTGRES_USER: domtom-connect_user
-      POSTGRES_PASSWORD: domtom-connect_pass
+      POSTGRES_DB: domtom_connect
+      POSTGRES_USER: domtom_connect_user
+      POSTGRES_PASSWORD: domtom_connect_pass
     ports:
       - "5432:5432"
     volumes:
@@ -24,11 +24,11 @@ services:
 
   db_test:
     image: postgres:16-alpine
-    container_name: outremer_db_test
+    container_name: domtom-connect_db_test
     environment:
-      POSTGRES_DB: outremer_test
-      POSTGRES_USER: outremer_user
-      POSTGRES_PASSWORD: outremer_pass
+      POSTGRES_DB: domtom_connect_test
+      POSTGRES_USER: domtom_connect_user
+      POSTGRES_PASSWORD: domtom_connect_pass
     ports:
       - "5433:5432"
     restart: unless-stopped
