@@ -1,3 +1,5 @@
+export type MapVisibility = "everyone" | "followers" | "none";
+
 export interface User {
   id: string;
   email: string;
@@ -6,7 +8,10 @@ export interface User {
   bio?: string;
   originTerritory: string;
   currentCity?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   showOnMap: boolean;
+  mapVisibility: MapVisibility;
   isAdmin: boolean;
   createdAt: string;
 }

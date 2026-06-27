@@ -12,6 +12,7 @@ export interface Message {
   senderId: string;
   conversationId: string;
   readAt?: string | null;
+  deletedForIds?: string[];
   createdAt: string;
   sender: MessageSender;
 }
@@ -41,6 +42,13 @@ interface ChatState {
   setActiveConv: (id: string | null) => void;
   addMessage: (msg: Message) => void;
   setMessages: (convId: string, msgs: Message[]) => void;
+  updateMessage: (
+    convId: string,
+    msgId: string,
+    patch: Partial<Message>,
+  ) => void;
+  // Efface le cache messages d'une conv (après soft-delete côté client)
+  clearMessages: (convId: string) => void;
   setTyping: (convId: string, userId: string, on: boolean) => void;
   setUserOnline: (userId: string) => void;
   setUserOffline: (userId: string) => void;
@@ -69,7 +77,6 @@ export const useChatStore = create<ChatState>()((set) => ({
 
   setActiveConv: (activeConvId) => set({ activeConvId }),
 
-  // Ajoute un message sans doublon
   addMessage: (msg) =>
     set((s) => {
       const existing = s.messages[msg.conversationId] || [];
@@ -84,6 +91,27 @@ export const useChatStore = create<ChatState>()((set) => ({
 
   setMessages: (convId, msgs) =>
     set((s) => ({ messages: { ...s.messages, [convId]: msgs } })),
+
+  // Patch partiel d'un message existant (ex : marquer supprimé)
+  updateMessage: (convId, msgId, patch) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [convId]: (s.messages[convId] ?? []).map((m) =>
+          m.id === msgId ? { ...m, ...patch } : m,
+        ),
+      },
+    })),
+
+  // Efface le cache d'une conversation (soft-delete côté client)
+  // Ainsi si l'user recrée la conv, les messages sont rechargés depuis le backend
+  // qui ne retourne que les messages APRÈS la date de suppression
+  clearMessages: (convId) =>
+    set((s) => {
+      const next = { ...s.messages };
+      delete next[convId];
+      return { messages: next };
+    }),
 
   setTyping: (convId, userId, on) =>
     set((s) => ({
