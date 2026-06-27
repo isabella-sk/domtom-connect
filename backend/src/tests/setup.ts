@@ -1,18 +1,20 @@
 import { prisma } from "../config/database";
+import { redisClient } from "../config/redis";
 
-// Après chaque test individuel : vide les tables dans l'ordre (FK)
-afterEach(async () => {
-  await prisma.refreshToken.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.conversationMember.deleteMany();
-  await prisma.conversation.deleteMany();
-  await prisma.follow.deleteMany();
-  await prisma.scamReport.deleteMany();
-  await prisma.post.deleteMany();
-  await prisma.user.deleteMany();
+// Connexion Redis avant les tests
+beforeAll(async () => {
+  await redisClient.connect();
 });
 
-// Après tous les tests du fichier : déconnexion Prisma
+// Nettoyage entre chaque test
+afterEach(async () => {
+  await prisma.conversation.deleteMany();
+  await prisma.user.deleteMany();
+  await redisClient.flushdb();
+});
+
+// Fermeture propre
 afterAll(async () => {
   await prisma.$disconnect();
+  await redisClient.quit();
 });
