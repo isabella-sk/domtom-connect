@@ -1,6 +1,24 @@
 import { Request, Response, NextFunction } from "express";
 import * as postsService from "./posts.service";
+import { prisma } from "../../config/database";
+import { createPostSchema } from "./posts.schema";
 
+// Helper : parser le JSON des liens envoyé en FormData
+const parseLinks = (raw: unknown): { url: string; name?: string }[] => {
+  if (!raw || typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (l): l is { url: string; name?: string } =>
+        typeof l === "object" && l !== null && typeof l.url === "string",
+    );
+  } catch {
+    return [];
+  }
+};
+
+// GET ALL
 export const getPosts = async (
   req: Request,
   res: Response,
@@ -15,78 +33,104 @@ export const getPosts = async (
   }
 };
 
+// GET BY ID
 export const getPostById = async (
-  req: Request,
+  req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const postId = req.params.id as string; // ← FIX
-    const post = await postsService.getPostById(postId);
+    const post = await postsService.getPostById(req.params.id);
     res.status(200).json(post);
   } catch (err) {
     next(err);
   }
 };
 
+// CREATE (multipart/form-data)
 export const createPost = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const post = await postsService.createPost(req.body, req.userId!);
+    const result = createPostSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Données invalides",
+        errors: result.error.flatten().fieldErrors,
+      });
+    }
+
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const links = parseLinks(result.data.links);
+
+    const post = await postsService.createPost(
+      result.data,
+      req.userId!,
+      files,
+      links,
+    );
     res.status(201).json(post);
   } catch (err) {
     next(err);
   }
 };
 
+// UPDATE (multipart/form-data ou JSON)
 export const updatePost = async (
-  req: Request,
+  req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const postId = req.params.id as string; // ← FIX
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { isAdmin: true },
+    });
 
-    const user = await import("../../config/database").then((m) =>
-      m.prisma.user.findUnique({
-        where: { id: req.userId! },
-        select: { isAdmin: true },
-      }),
-    );
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const links = parseLinks(req.body.links);
+
+    // Normaliser isPinned qu'il arrive en string (FormData) ou boolean (JSON)
+    const body: Record<string, unknown> = { ...req.body };
+    if ("isPinned" in body) {
+      body.isPinned = body.isPinned === "true" || body.isPinned === true;
+    }
+    // Supprimer "links" du body — c'est géré séparément
+    delete body.links;
 
     const post = await postsService.updatePost(
-      postId,
-      req.body,
+      req.params.id,
+      body,
       req.userId!,
       user?.isAdmin ?? false,
+      files,
+      links,
     );
-
     res.status(200).json(post);
   } catch (err) {
     next(err);
   }
 };
 
+// DELETE
 export const deletePost = async (
-  req: Request,
+  req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const postId = req.params.id as string; // ← FIX
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { isAdmin: true },
+    });
 
-    const user = await import("../../config/database").then((m) =>
-      m.prisma.user.findUnique({
-        where: { id: req.userId! },
-        select: { isAdmin: true },
-      }),
+    await postsService.deletePost(
+      req.params.id,
+      req.userId!,
+      user?.isAdmin ?? false,
     );
-
-    await postsService.deletePost(postId, req.userId!, user?.isAdmin ?? false);
-
     res.status(204).send();
   } catch (err) {
     next(err);

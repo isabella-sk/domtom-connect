@@ -3,7 +3,7 @@ import { prisma } from "../../config/database";
 import { redisClient } from "../../config/redis";
 import { verifyAccessToken } from "../../utils/jwt";
 
-const ONLINE_TTL = 300; // 5min en secondes
+const ONLINE_TTL = 300;
 
 export const initSocketHandlers = (io: Server) => {
   // MIDDLEWARE D'AUTHENTIFICATION
@@ -23,7 +23,7 @@ export const initSocketHandlers = (io: Server) => {
   // CONNEXION ÉTABLIE
   io.on("connection", async (socket: Socket) => {
     const userId = socket.data.userId as string;
-    console.log(`👤 [Socket] User ${userId} connecté — socket ${socket.id}`);
+    console.log(`👤 [Socket] User ${userId} connecté - socket ${socket.id}`);
 
     // 1. Marquer l'user en ligne dans Redis
     await redisClient.setex(`user:online:${userId}`, ONLINE_TTL, "1");
@@ -87,7 +87,12 @@ export const initSocketHandlers = (io: Server) => {
             data: { updatedAt: new Date() },
           });
 
-          // Diffuse à TOUS les membres de la room (y compris l'émetteur)
+          // Réactiver la conv pour les membres qui l'avaient soft-deleted
+          await prisma.conversationMember.updateMany({
+            where: { conversationId, deletedAt: { not: null } },
+            data: { deletedAt: null },
+          });
+
           io.to(`conv:${conversationId}`).emit("new_message", {
             ...message,
             conversationId,
@@ -98,42 +103,80 @@ export const initSocketHandlers = (io: Server) => {
       },
     );
 
-    // Indicateur "en train d'écrire..."
-    socket.on("typing", ({ conversationId }: { conversationId: string }) => {
-      // Envoie à tous SAUF l'émetteur
-      socket.to(`conv:${conversationId}`).emit("user_typing", {
-        userId,
+    // Supprimer un message (pour tout le monde)
+    socket.on(
+      "delete_message",
+      async ({
+        messageId,
         conversationId,
-      });
+      }: {
+        messageId: string;
+        conversationId: string;
+      }) => {
+        try {
+          const message = await prisma.message.findUnique({
+            where: { id: messageId },
+          });
+          if (!message) return;
+          if (message.senderId !== userId) {
+            socket.emit("error", {
+              message: "Tu ne peux supprimer que tes propres messages",
+            });
+            return;
+          }
+
+          // Marquer comme supprimé pour tout le monde
+          const updated = await prisma.message.update({
+            where: { id: messageId },
+            data: {
+              content: "__deleted__",
+              deletedForIds: ["__everyone__"],
+            },
+            include: {
+              sender: { select: { id: true, username: true, avatarUrl: true } },
+            },
+          });
+
+          // Notifier tous les membres de la conv
+          io.to(`conv:${conversationId}`).emit("message_deleted", {
+            messageId,
+            conversationId,
+            message: updated,
+          });
+        } catch (err) {
+          console.error("[Socket] delete_message:", err);
+        }
+      },
+    );
+
+    // Typing indicators
+    socket.on("typing", ({ conversationId }: { conversationId: string }) => {
+      socket
+        .to(`conv:${conversationId}`)
+        .emit("user_typing", { userId, conversationId });
     });
 
     socket.on(
       "stop_typing",
       ({ conversationId }: { conversationId: string }) => {
-        socket.to(`conv:${conversationId}`).emit("user_stop_typing", {
-          userId,
-          conversationId,
-        });
+        socket
+          .to(`conv:${conversationId}`)
+          .emit("user_stop_typing", { userId, conversationId });
       },
     );
 
-    // Rejoindre une conversation créée après la connexion
+    // Rejoindre une conversation
     socket.on("join_conversation", (conversationId: string) => {
       socket.join(`conv:${conversationId}`);
-      console.log(`[Socket] User ${userId} rejoint conv:${conversationId}`);
     });
 
-    // Marquer les messages comme lus
+    // Marquer les messages comme lu
     socket.on(
       "mark_read",
       async ({ conversationId }: { conversationId: string }) => {
         try {
           await prisma.message.updateMany({
-            where: {
-              conversationId,
-              readAt: null,
-              NOT: { senderId: userId },
-            },
+            where: { conversationId, readAt: null, NOT: { senderId: userId } },
             data: { readAt: new Date() },
           });
         } catch (err) {
@@ -142,7 +185,7 @@ export const initSocketHandlers = (io: Server) => {
       },
     );
 
-    // DÉCONNEXION
+    // Déconnexion
     socket.on("disconnect", async (reason) => {
       clearInterval(heartbeat);
       await redisClient.del(`user:online:${userId}`);

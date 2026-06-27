@@ -15,14 +15,14 @@ export const getConversations = async (
 };
 
 export const getMessages = async (
-  req: Request,
+  req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const msgs = await chatService.getMessages(
-      req.params.id as string,
+      req.params.id,
       req.userId!,
       page,
     );
@@ -60,6 +60,35 @@ export const createGroupConv = async (
       req.body.memberIds,
     );
     res.status(201).json(conv);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteConversation = async (
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    await chatService.deleteConversationForUser(req.params.id, req.userId!);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteMessage = async (
+  req: Request<{ messageId: string }>,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const message = await chatService.deleteMessageForEveryone(
+      req.params.messageId,
+      req.userId!,
+    );
+    res.status(200).json(message);
   } catch (err) {
     next(err);
   }

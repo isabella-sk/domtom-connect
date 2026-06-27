@@ -20,3 +20,9 @@ chatRouter.post(
   validate(createGroupConvSchema),
   ctrl.createGroupConv,
 );
+chatRouter.delete("/conversations/:id", authenticate, ctrl.deleteConversation);
+chatRouter.delete(
+  "/conversations/:id/messages/:messageId",
+  authenticate,
+  ctrl.deleteMessage,
+);

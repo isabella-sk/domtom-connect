@@ -1,17 +1,15 @@
 import { z } from "zod";
 
 export const updateProfileSchema = z.object({
-  username: z
-    .string()
-    .min(3, "Minimum 3 caractères")
-    .max(30, "Maximum 30 caractères")
-    .regex(/^[a-zA-Z0-9_]+$/, "Lettres, chiffres et underscores uniquement")
-    .optional(),
-  bio: z.string().max(300, "Maximum 300 caractères").optional(),
-  currentCity: z.string().max(100).optional(),
+  username: z.string().min(3).max(30).optional(),
+  bio: z.string().max(300).optional().nullable(),
+  currentCity: z.string().max(100).optional().nullable(),
   showOnMap: z.boolean().optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  // "everyone" | "followers" | "none"
+  mapVisibility: z.enum(["everyone", "followers", "none"]).optional(),
+  // Coordonnées mises à jour si l'user active la carte
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
 });
 
 export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
