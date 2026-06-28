@@ -115,23 +115,6 @@ export const Register = () => {
         >
           <Link
             to="/"
-            aria-label="DOM-TOM Connect  Retour à l'accueil"
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                border: "2px solid rgba(255,255,255,0.5)",
-                background: "rgba(255,255,255,0.12)",
-              }}
-            />
-          </Link>
-
-          <Link
-            to="/"
             style={{
               color: "rgba(255,255,255,0.85)",
               textDecoration: "none",
