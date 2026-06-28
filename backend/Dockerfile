@@ -11,13 +11,15 @@ COPY tsconfig.json ./
 # Installer TOUTES les dépendances (dev et prod pour le build)
 RUN npm ci
 
-# Copier le code source et builder
+# Générer le client Prisma AVANT le build (les types sont nécessaires pour tsc)
+RUN npx prisma generate
+
 COPY src/ ./src/
 
 RUN npm run build
 
-# Régénérer le client Prisma APRÈS le build, dans dist/
-RUN npx prisma generate
+# Copier le client généré dans dist/ pour qu'il soit accessible au runtime
+RUN cp -r src/generated dist/generated
 
 RUN npm prune --production
 
