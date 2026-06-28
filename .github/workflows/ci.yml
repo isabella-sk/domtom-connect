@@ -1,0 +1,107 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  #Job 1 : Tests
+  test:
+    name: Tests Jest + Couverture
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: domtom_connect_test
+          POSTGRES_USER: domtom_connect_user
+          POSTGRES_PASSWORD: domtom_connect_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://domtom_connect_user:domtom_connect_pass@localhost:5432/domtom_connect_test
+      REDIS_URL: redis://localhost:6379/1
+      JWT_ACCESS_SECRET: ci_access_secret_long_et_aleatoire
+      JWT_REFRESH_SECRET: ci_refresh_secret_long_et_aleatoire
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      FRONTEND_URL: http://localhost:5173
+      CLOUDINARY_CLOUD_NAME: ci_test
+      CLOUDINARY_API_KEY: ci_test
+      CLOUDINARY_API_SECRET: ci_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances
+        run: cd backend && npm ci
+
+      - name: Générer le client Prisma 7
+        run: cd backend && npx prisma generate
+
+      - name: Appliquer les migrations sur la BDD test
+        run: cd backend && npx prisma migrate deploy
+
+      - name: Lancer les tests avec couverture
+        run: cd backend && npm run test:coverage
+
+      - name: Upload rapport de couverture
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: backend/coverage/
+          retention-days: 30
+
+  # Job 2 : Vérification TypeScript
+  typecheck:
+    name: TypeScript check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Backend TypeScript
+        run: cd backend && npm ci && npx tsc --noEmit
+      - name: Frontend TypeScript
+        run: cd frontend && npm ci && npx tsc -b
+
+  # Job 3 : Deploy (main uniquement)
+  deploy:
+    name: Deploy Railway
+    needs: [test, typecheck]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      - name: Deploy backend
+        run: railway up --service backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
