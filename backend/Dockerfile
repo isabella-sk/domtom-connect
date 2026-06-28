@@ -6,19 +6,19 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma/ ./prisma/
 COPY prisma.config.ts ./
+COPY tsconfig.json ./
 
 # Installer TOUTES les dépendances (dev et prod pour le build)
 RUN npm ci
 
-# Générer le client Prisma 7 dans src/generated/prisma
-RUN npx prisma generate
-
 # Copier le code source et builder
 COPY src/ ./src/
-COPY tsconfig.json ./
+
 RUN npm run build
 
-# Garder seulement les dépendances de production
+# Régénérer le client Prisma APRÈS le build, dans dist/
+RUN npx prisma generate
+
 RUN npm prune --production
 
 # Exposer le port
