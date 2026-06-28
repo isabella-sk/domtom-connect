@@ -8,6 +8,7 @@ import {
   User,
   Settings,
   Shield,
+  LayoutDashboard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
@@ -29,6 +30,7 @@ export const Sidebar = () => {
   if (isMobile) return null;
 
   const LINKS: SidebarLink[] = [
+    { label: "Tableau de bord", path: "/dashboard", icon: LayoutDashboard },
     { label: "Guides démarches", path: "/guides", icon: FileText },
     { label: "Tips & Témoignages", path: "/tips", icon: Lightbulb },
     { label: "Alertes arnaques", path: "/scams", icon: AlertTriangle },

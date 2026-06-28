@@ -37,7 +37,7 @@ interface DashStats {
   unreadMessages: number;
   newGuides: number;
   recentAlerts: number;
-  sameTerritory: number;
+  totalMembers: number;
 }
 
 const MODULE_LOAD_TIME = new Date().getTime();
@@ -51,6 +51,25 @@ function timeAgo(date: string): string {
   return `il y a ${d} jour${d > 1 ? "s" : ""}`;
 }
 
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+function stripMarkdown(md: string, maxLength = 120): string {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/❌|✅|⚠️|🔴|🟢/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
+}
+
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
 
 export const Dashboard = () => {
@@ -62,7 +81,7 @@ export const Dashboard = () => {
     unreadMessages: 0,
     newGuides: 0,
     recentAlerts: 0,
-    sameTerritory: 0,
+    totalMembers: 0,
   });
   const [guides, setGuides] = useState<RecentPost[]>([]);
   const [tips, setTips] = useState<RecentTip[]>([]);
@@ -74,26 +93,18 @@ export const Dashboard = () => {
     let cancelled = false;
 
     Promise.all([
-      // Messages non lus — conversations de l'utilisateur
       api.get("/chat/conversations").catch(() => ({ data: [] })),
-      // Tous les guides (on filtre côté client sur 7j)
       api.get("/posts").catch(() => ({ data: [] })),
-      // Tips approuvés récents
       api.get("/tips?isApproved=true").catch(() => ({ data: [] })),
-      // Scams vérifiés récents
       api.get("/scam").catch(() => ({ data: [] })),
-      // Utilisateurs du même territoire
-      api
-        .get(
-          `/users?originTerritory=${encodeURIComponent(user.originTerritory)}`,
-        )
-        .catch(() => ({ data: [] })),
-    ]).then(([convsRes, allPostsRes, allTipsRes, allScamsRes, sameTerrRes]) => {
+      // Total membres — route publique standard
+      api.get("/users/count").catch(() => ({ data: { count: 0 } })),
+    ]).then(([convsRes, allPostsRes, allTipsRes, allScamsRes, membersRes]) => {
       if (cancelled) return;
 
       const now = MODULE_LOAD_TIME;
 
-      // ─ Messages non lus ──────────────────────────────────────────────────
+      // Messages non lus
       const convs = Array.isArray(convsRes.data) ? convsRes.data : [];
       const unreadMessages = convs.reduce(
         (
@@ -108,7 +119,7 @@ export const Dashboard = () => {
         0,
       );
 
-      // ─ Nouveaux guides (7 derniers jours) ────────────────────────────────
+      // Nouveaux guides (7j)
       const allPosts: RecentPost[] = Array.isArray(allPostsRes.data)
         ? allPostsRes.data
         : [];
@@ -116,7 +127,7 @@ export const Dashboard = () => {
         (p) => now - new Date(p.createdAt).getTime() < SEVEN_DAYS_MS,
       ).length;
 
-      // ─ Alertes arnaques récentes (7j) ────────────────────────────────────
+      // Alertes récentes (7j)
       const allScams: RecentScam[] = Array.isArray(allScamsRes.data)
         ? allScamsRes.data
         : [];
@@ -124,18 +135,16 @@ export const Dashboard = () => {
         (s) => now - new Date(s.createdAt).getTime() < SEVEN_DAYS_MS,
       ).length;
 
-      // ─ Étudiants du même territoire (hors soi-même) ──────────────────────
-      const sameTerrUsers = Array.isArray(sameTerrRes.data)
-        ? sameTerrRes.data
-        : [];
-      const sameTerritory = Math.max(
-        0,
-        sameTerrUsers.filter((u: { id: string }) => u.id !== user.id).length,
-      );
+      // Total membres
+      const totalMembers =
+        typeof membersRes.data?.count === "number"
+          ? membersRes.data.count
+          : Array.isArray(membersRes.data)
+            ? membersRes.data.length
+            : 0;
 
-      setStats({ unreadMessages, newGuides, recentAlerts, sameTerritory });
+      setStats({ unreadMessages, newGuides, recentAlerts, totalMembers });
 
-      // ─ Contenu récent pour les listes ────────────────────────────────────
       setGuides(allPosts.slice(0, 3));
       setTips(
         Array.isArray(allTipsRes.data) ? allTipsRes.data.slice(0, 3) : [],
@@ -162,10 +171,8 @@ export const Dashboard = () => {
       icon: AlertTriangle,
     },
     {
-      label: user?.originTerritory
-        ? `Étudiants ${user.originTerritory}`
-        : "Étudiants du territoire",
-      value: stats.sameTerritory,
+      label: "Membres inscrits",
+      value: stats.totalMembers,
       icon: Users,
     },
   ];
@@ -615,16 +622,13 @@ export const Dashboard = () => {
                         </p>
                         <p
                           style={{
-                            color: "rgba(255,255,255,0.7)",
+                            color: "rgba(255,255,255,0.6)",
                             fontSize: 12,
-                            margin: "4px 0 0",
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            overflow: "hidden",
+                            margin: "4px 0 2px",
+                            lineHeight: 1.5,
                           }}
                         >
-                          {scam.description}
+                          {stripMarkdown(scam.description)}
                         </p>
                         <p style={listMetaStyle}>{timeAgo(scam.createdAt)}</p>
                       </div>

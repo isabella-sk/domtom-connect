@@ -17,10 +17,7 @@ import { Footer } from "../components/layout/Footer";
 import { useMobile } from "../hooks/useMobile";
 import friseSide from "../assets/frise_side.png";
 import { getApiErrorMessage } from "../utils/apiError";
-import {
-  EditArticlePanel,
-  type EditableArticle,
-} from "../components/layout/EditArticlePanel";
+import { EditArticlePanel } from "../components/layout/EditArticlePanel";
 
 interface UserProfile {
   id: string;
@@ -109,6 +106,24 @@ const TYPE_CONFIG = {
     color: "#991B1B",
     icon: AlertTriangle,
   },
+};
+
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+const stripMarkdown = (md: string, maxLength = 160): string => {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
 };
 
 const PageShell = ({ children }: { children: React.ReactNode }) => (
@@ -370,7 +385,7 @@ export const Profile = () => {
               minWidth: 0,
             }}
           >
-            <div style={{ maxWidth: 860, margin: "0 auto" }}>
+            <div style={{ maxWidth: "100%", margin: "0 auto" }}>
               {actionError && (
                 <div
                   role="alert"
@@ -456,7 +471,14 @@ export const Profile = () => {
                     )}
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
                     <div
                       style={{
                         display: "flex",
@@ -511,6 +533,9 @@ export const Profile = () => {
                         <button
                           onClick={() => navigate("/settings")}
                           style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
                             padding: "6px 14px",
                             fontSize: 12,
                             border: "1.5px solid #e5e7eb",
@@ -522,7 +547,8 @@ export const Profile = () => {
                             minHeight: 36,
                           }}
                         >
-                          ✏️ Modifier
+                          <Pencil size={13} color="#555" aria-hidden="true" />
+                          Modifier
                         </button>
                       )}
                     </div>
@@ -655,7 +681,49 @@ export const Profile = () => {
                   );
                 })}
               </div>
+              {editingPost && (
+                <div
+                  style={{
+                    background: "#fff",
+                    borderRadius: 18,
+                    padding: 28,
+                    marginBottom: 24,
+                    boxShadow: "0 12px 30px rgba(0,0,0,.08)",
+                  }}
+                >
+                  <EditArticlePanel
+                    article={{
+                      id: editingPost.id,
+                      title: editingPost.title,
+                      content:
+                        editingPost.content ?? editingPost.description ?? "",
+                      articleType: editingPost.type,
+                      category: editingPost.category,
+                      attachments: editingPost.attachments ?? [],
+                    }}
+                    role="user"
+                    onSaved={(updated) => {
+                      setUserPosts((prev) =>
+                        prev.map((p) =>
+                          p.id === updated.id
+                            ? {
+                                ...p,
+                                title: updated.title,
+                                content: updated.content,
+                                description: updated.content,
+                                category: updated.category ?? p.category,
+                                attachments: updated.attachments,
+                              }
+                            : p,
+                        ),
+                      );
 
+                      setEditingPost(null);
+                    }}
+                    onCancel={() => setEditingPost(null)}
+                  />
+                </div>
+              )}
               {/* Publications */}
               {tab === "posts" && (
                 <div>
@@ -686,223 +754,219 @@ export const Profile = () => {
                   ) : (
                     <div
                       style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 12,
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                          ? "repeat(2, 1fr)"
+                          : "repeat(5, 1fr)",
+                        gap: 16,
+                        alignItems: "stretch",
                       }}
                     >
                       {userPosts.map((post) => {
                         const config = TYPE_CONFIG[post.type];
                         const Icon = config.icon;
-                        const isEditing = editingPost?.id === post.id;
                         const isDeleting = deletingId === post.id;
                         return (
                           <article
                             key={post.id}
                             style={{
+                              position: "relative",
                               background: "#fff",
                               borderRadius: 14,
-                              padding: isMobile ? "14px 16px" : "18px 22px",
+                              padding: 16,
+                              minHeight: 220,
+                              display: "flex",
+                              flexDirection: "column",
+                              cursor: "pointer",
                             }}
                           >
-                            {isEditing ? (
-                              <EditArticlePanel
-                                key={post.id}
-                                article={{
-                                  id: post.id,
-                                  title: post.title,
-                                  content:
-                                    post.content ?? post.description ?? "",
-                                  articleType: post.type,
-                                  category: post.category,
-                                  attachments: post.attachments ?? [],
-                                }}
-                                role="user"
-                                onSaved={(updated: EditableArticle) => {
-                                  setUserPosts((prev) =>
-                                    prev.map((p) =>
-                                      p.id === updated.id
-                                        ? {
-                                            ...p,
-                                            title: updated.title,
-                                            content: updated.content,
-                                            description: updated.content,
-                                            category:
-                                              updated.category ?? p.category,
-                                            attachments: updated.attachments,
-                                          }
-                                        : p,
-                                    ),
-                                  );
-                                  setEditingPost(null);
-                                }}
-                                onCancel={() => setEditingPost(null)}
-                              />
-                            ) : (
-                              <div
+                            {/* MAIN */}
+                            <div
+                              style={{
+                                flex: 1,
+                                display: "flex",
+                                flexDirection: "column",
+                                minWidth: 0,
+                              }}
+                            >
+                              {/* TITLE */}
+                              <h2
                                 style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "flex-start",
-                                  gap: 10,
+                                  width: 200,
+                                  fontSize: 15,
+                                  fontWeight: 700,
+                                  margin: 0,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
                                 }}
                               >
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div
+                                {post.title}
+                              </h2>
+
+                              {/* CONTENT */}
+                              <p
+                                style={{
+                                  fontSize: 13,
+                                  color: "#777",
+                                  marginTop: 8,
+                                  marginBottom: 0,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 4,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {stripMarkdown(
+                                  post.content ?? post.description ?? "",
+                                )}
+                              </p>
+
+                              {/* PUSH FOOTER DOWN */}
+                              <div style={{ marginTop: "auto" }}>
+                                {/* TAGS */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                    margin: 0,
+                                  }}
+                                >
+                                  <span
                                     style={{
-                                      display: "flex",
+                                      display: "inline-flex",
                                       alignItems: "center",
-                                      gap: 8,
-                                      marginBottom: 8,
-                                      flexWrap: "wrap",
+                                      gap: 4,
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      background: config.bg,
+                                      color: config.color,
+                                      padding: "3px 10px",
+                                      borderRadius: 50,
                                     }}
                                   >
+                                    <Icon size={11} aria-hidden="true" />{" "}
+                                    {config.label}
+                                  </span>
+
+                                  {post.category && (
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        color: "#9CA3AF",
+                                        background: "#F3F4F6",
+                                        padding: "3px 10px",
+                                        borderRadius: 50,
+                                        textTransform: "capitalize",
+                                      }}
+                                    >
+                                      {post.category}
+                                    </span>
+                                  )}
+
+                                  {post.isPinned && (
                                     <span
                                       style={{
                                         display: "inline-flex",
                                         alignItems: "center",
-                                        gap: 4,
+                                        gap: 3,
                                         fontSize: 11,
-                                        fontWeight: 600,
-                                        background: config.bg,
-                                        color: config.color,
+                                        color: "#2888C5",
+                                        background: "#E6F1FB",
                                         padding: "3px 10px",
                                         borderRadius: 50,
                                       }}
                                     >
-                                      <Icon size={11} aria-hidden="true" />{" "}
-                                      {config.label}
+                                      <Pin size={10} aria-hidden="true" />{" "}
+                                      Épinglé
                                     </span>
-                                    {post.category && (
-                                      <span
-                                        style={{
-                                          fontSize: 11,
-                                          color: "#9CA3AF",
-                                          background: "#F3F4F6",
-                                          padding: "3px 10px",
-                                          borderRadius: 50,
-                                          textTransform: "capitalize",
-                                        }}
-                                      >
-                                        {post.category}
-                                      </span>
-                                    )}
-                                    {post.isPinned && (
-                                      <span
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: 3,
-                                          fontSize: 11,
-                                          color: "#2888C5",
-                                          background: "#E6F1FB",
-                                          padding: "3px 10px",
-                                          borderRadius: 50,
-                                        }}
-                                      >
-                                        <Pin size={10} aria-hidden="true" />{" "}
-                                        Épinglé
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h2
-                                    style={{
-                                      fontSize: 15,
-                                      fontWeight: 700,
-                                      color: "#0a1d52",
-                                      margin: "0 0 6px",
-                                    }}
-                                  >
-                                    {post.title}
-                                  </h2>
-                                  <p
-                                    style={{
-                                      fontSize: 13,
-                                      color: "#777",
-                                      margin: 0,
-                                      lineHeight: 1.6,
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
-                                    }}
-                                  >
-                                    {post.content ?? post.description}
-                                  </p>
-                                  <p
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#bbb",
-                                      marginTop: 8,
-                                      marginBottom: 0,
-                                    }}
-                                  >
-                                    <time dateTime={post.createdAt}>
-                                      {new Date(
-                                        post.createdAt,
-                                      ).toLocaleDateString("fr-FR", {
-                                        day: "numeric",
-                                        month: "long",
-                                        year: "numeric",
-                                      })}
-                                    </time>
-                                  </p>
+                                  )}
                                 </div>
-                                {isOwn && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: 6,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    <button
-                                      onClick={() => setEditingPost(post)}
-                                      aria-label={`Modifier : ${post.title}`}
-                                      style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 8,
-                                        border: "1.5px solid #e5e7eb",
-                                        background: "#fff",
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                      }}
-                                    >
-                                      <Pencil
-                                        size={14}
-                                        color="#555"
-                                        aria-hidden="true"
-                                      />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(post)}
-                                      disabled={isDeleting}
-                                      aria-label={`Supprimer : ${post.title}`}
-                                      style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 8,
-                                        border: "1.5px solid #FEE2E2",
-                                        background: "#FFF5F5",
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        opacity: isDeleting ? 0.5 : 1,
-                                      }}
-                                    >
-                                      <Trash2
-                                        size={14}
-                                        color="#DC2626"
-                                        aria-hidden="true"
-                                      />
-                                    </button>
-                                  </div>
-                                )}
+                                {/* DATE */}
+                                <p
+                                  style={{
+                                    fontSize: 11,
+                                    color: "#bbb",
+                                    margin: "5px 0 0 0",
+                                  }}
+                                >
+                                  <time dateTime={post.createdAt}>
+                                    {new Date(
+                                      post.createdAt,
+                                    ).toLocaleDateString("fr-FR", {
+                                      day: "numeric",
+                                      month: "long",
+                                      year: "numeric",
+                                    })}
+                                  </time>
+                                </p>
                               </div>
+                            </div>
+
+                            {/* ACTIONS */}
+                            {isOwn && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingPost(post);
+                                    window.scrollTo({
+                                      top: 0,
+                                      behavior: "smooth",
+                                    });
+                                  }}
+                                  aria-label={`Modifier : ${post.title}`}
+                                  style={{
+                                    position: "absolute",
+                                    top: 12,
+                                    right: 45,
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 6,
+                                    border: "1.5px solid #e5e7eb",
+                                    background: "#fff",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Pencil
+                                    size={13}
+                                    color="#555"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDelete(post)}
+                                  disabled={isDeleting}
+                                  aria-label={`Supprimer : ${post.title}`}
+                                  style={{
+                                    position: "absolute",
+                                    top: 12,
+                                    right: 12,
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 6,
+                                    border: "1.5px solid #FEE2E2",
+                                    background: "#FFF5F5",
+                                    cursor: "pointer",
+                                    opacity: isDeleting ? 0.5 : 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Trash2
+                                    size={13}
+                                    color="#DC2626"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </>
                             )}
                           </article>
                         );

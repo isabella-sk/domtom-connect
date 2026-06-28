@@ -68,9 +68,27 @@ const CATEGORY_COLORS: Record<
   autre: { bg: "#F3F4F6", color: "#374151", label: "Autre" },
 };
 
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+const stripMarkdown = (md: string, maxLength = 160): string => {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
+};
+
 const PAGE_SIZE = 12;
 
-// ── Helper composant erreur de champ ────────────────────────────────────────
+//Helper composant erreur de champ
 const FieldError = ({
   name,
   errors,
@@ -1229,7 +1247,7 @@ export const Scams = () => {
                               overflow: "hidden",
                             }}
                           >
-                            {scam.description}
+                            {stripMarkdown(scam.description)}
                           </p>
 
                           <div

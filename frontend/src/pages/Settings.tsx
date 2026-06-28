@@ -594,7 +594,7 @@ export const Settings = () => {
                         </p>
                         <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
                           Active cette option pour être visible par d'autres
-                          étudiants.
+                          utilisateurs.
                         </p>
                       </div>
                       <button

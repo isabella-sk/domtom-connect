@@ -12,7 +12,6 @@ import {
   FileText,
 } from "lucide-react";
 import api from "../../services/api";
-import { MarkdownLegend } from "../../components/layout/MarkdownLegend";
 import { Navbar } from "../../components/layout/Navbar";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { Footer } from "../../components/layout/Footer";
@@ -47,6 +46,42 @@ interface LinkEntry {
 
 const PAGE_SIZE = 12;
 
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+const stripMarkdown = (md: string, maxLength = 160): string => {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
+};
+
+// Helper erreur champ
+const FieldError = ({
+  name,
+  errors,
+}: {
+  name: string;
+  errors: Record<string, string>;
+}) =>
+  errors[name] ? (
+    <p
+      role="alert"
+      aria-live="polite"
+      style={{ fontSize: 12, color: "#DC2626", marginTop: 4, marginBottom: 0 }}
+    >
+      {errors[name]}
+    </p>
+  ) : null;
+
 export const Tips = () => {
   const navigate = useNavigate();
   const isMobile = useMobile();
@@ -62,6 +97,7 @@ export const Tips = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [page, setPage] = useState(1);
+  // ── Erreurs formulaire ───────────────────────────────────────────────────
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,6 +151,7 @@ export const Tips = () => {
     setLinks((prev) => prev.filter((_, i) => i !== index));
 
   const handleSubmit = async () => {
+    if (!form.title.trim() || !form.content.trim()) return;
     setSubmitting(true);
     setFormErrors({});
     try {
@@ -129,7 +166,6 @@ export const Tips = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 5000);
       setShowForm(false);
       setForm({ title: "", content: "", type: "tip" });
       setFiles([]);
@@ -283,7 +319,8 @@ export const Tips = () => {
                   marginBottom: 20,
                 }}
               >
-                ✓ Merci ! Ton partage est en attente de validation par l'équipe.
+                ✓ Merci ! Ton partage est en attente de validation par
+                l&apos;équipe.
               </div>
             )}
 
@@ -353,7 +390,15 @@ export const Tips = () => {
                         <button
                           key={t}
                           type="button"
-                          onClick={() => setForm({ ...form, type: t })}
+                          onClick={() => {
+                            setForm({ ...form, type: t });
+                            if (formErrors.type)
+                              setFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.type;
+                                return next;
+                              });
+                          }}
                           aria-pressed={form.type === t}
                           style={{
                             flex: 1,
@@ -364,7 +409,9 @@ export const Tips = () => {
                             border:
                               form.type === t
                                 ? "1.5px solid #1D9E75"
-                                : "1px solid #e5e7eb",
+                                : formErrors.type
+                                  ? "1.5px solid #DC2626"
+                                  : "1px solid #e5e7eb",
                             background: form.type === t ? "#E1F5EE" : "#f9fafb",
                             color: form.type === t ? "#085041" : "#555",
                             fontWeight: form.type === t ? 600 : 400,
@@ -389,6 +436,7 @@ export const Tips = () => {
                         </button>
                       ))}
                     </div>
+                    <FieldError name="type" errors={formErrors} />
                   </fieldset>
 
                   {/* Titre */}
@@ -414,23 +462,22 @@ export const Tips = () => {
                         setForm({ ...form, title: e.target.value });
                         if (formErrors.title)
                           setFormErrors((prev) => {
-                            const n = { ...prev };
-                            delete n.title;
-                            return n;
+                            const next = { ...prev };
+                            delete next.title;
+                            return next;
                           });
                       }}
                       placeholder="Ex: Comment trouver une coloc rapidement"
                       required
                       aria-required="true"
-                      aria-invalid={!!formErrors.title}
                       aria-describedby={
                         formErrors.title ? "error-tip-title" : undefined
                       }
+                      aria-invalid={!!formErrors.title}
                       style={{
                         width: "100%",
                         padding: "10px 14px",
-                        border: "1.5px solid",
-                        borderColor: formErrors.title ? "#DC2626" : "#e5e7eb",
+                        border: `1.5px solid ${formErrors.title ? "#DC2626" : "#e5e7eb"}`,
                         borderRadius: 8,
                         fontSize: 14,
                         color: "#0a1d52",
@@ -478,31 +525,30 @@ export const Tips = () => {
                         setForm({ ...form, content: e.target.value });
                         if (formErrors.content)
                           setFormErrors((prev) => {
-                            const n = { ...prev };
-                            delete n.content;
-                            return n;
+                            const next = { ...prev };
+                            delete next.content;
+                            return next;
                           });
                       }}
                       placeholder="Raconte ton expérience, partage ton conseil..."
                       rows={5}
                       required
                       aria-required="true"
-                      aria-invalid={!!formErrors.content}
                       aria-describedby={
                         formErrors.content ? "error-tip-content" : undefined
                       }
+                      aria-invalid={!!formErrors.content}
                       style={{
                         width: "100%",
                         padding: "10px 14px",
-                        border: "1.5px solid",
-                        borderColor: formErrors.content ? "#DC2626" : "#e5e7eb",
+                        border: `1.5px solid ${formErrors.content ? "#DC2626" : "#e5e7eb"}`,
                         borderRadius: 8,
                         fontSize: 14,
                         color: "#0a1d52",
                         outline: "none",
-                        boxSizing: "border-box",
                         resize: "none",
                         fontFamily: "inherit",
+                        boxSizing: "border-box",
                       }}
                     />
                     {formErrors.content && (
@@ -520,7 +566,6 @@ export const Tips = () => {
                         {formErrors.content}
                       </p>
                     )}
-                    <MarkdownLegend />
                   </div>
 
                   {/* Sources & Médias */}
@@ -855,7 +900,9 @@ export const Tips = () => {
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={submitting}
+                      disabled={
+                        submitting || !form.title.trim() || !form.content.trim()
+                      }
                       aria-busy={submitting}
                       style={{
                         padding: "10px 20px",
@@ -865,7 +912,12 @@ export const Tips = () => {
                         borderRadius: 8,
                         fontSize: 14,
                         cursor: "pointer",
-                        opacity: submitting ? 0.6 : 1,
+                        opacity:
+                          submitting ||
+                          !form.title.trim() ||
+                          !form.content.trim()
+                            ? 0.6
+                            : 1,
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
@@ -971,8 +1023,8 @@ export const Tips = () => {
                   fontSize: 14,
                 }}
               >
-                Aucun contenu pour l'instant &mdash; sois le premier à partager
-                !
+                Aucun contenu pour l&apos;instant &mdash; sois le premier à
+                partager !
               </p>
             ) : (
               <>
@@ -1177,7 +1229,7 @@ export const Tips = () => {
                               overflow: "hidden",
                             }}
                           >
-                            {tip.content}
+                            {stripMarkdown(tip.content)}
                           </p>
 
                           <div

@@ -114,6 +114,24 @@ type Tab =
   | "published_scams";
 type SubTab = "scams" | "tips";
 
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+const stripMarkdown = (md: string, maxLength = 160): string => {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
+};
+
 const GUIDE_CATEGORIES = [
   "logement",
   "caf",
@@ -124,6 +142,7 @@ const GUIDE_CATEGORIES = [
   "crous",
   "autre",
 ] as const;
+
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
   logement: { bg: "#FEF3C7", color: "#92400E" },
   banque: { bg: "#DBEAFE", color: "#1E40AF" },
@@ -1056,7 +1075,7 @@ const ScamDetailPanel = ({
               whiteSpace: "pre-wrap",
             }}
           >
-            {scam.description}
+            {stripMarkdown(scam.description)}
           </p>
         </div>
         {images.length > 0 && (
@@ -1556,7 +1575,7 @@ const TipDetailPanel = ({
               whiteSpace: "pre-wrap",
             }}
           >
-            {tip.content}
+            {stripMarkdown(tip.content)}
           </p>
         </div>
         {images.length > 0 && (
@@ -2448,6 +2467,8 @@ const ScamForm = ({
     title: string;
     description: string;
     category: string;
+    files: File[];
+    links: LinkEntry[];
   }) => Promise<void>;
   onCancel: () => void;
 }) => {
@@ -2456,14 +2477,38 @@ const ScamForm = ({
     description: "",
     category: "logement",
   });
+  const [files, setFiles] = useState<File[]>([]);
+  const [links, setLinks] = useState<LinkEntry[]>([]);
+  const [linkInput, setLinkInput] = useState({ url: "", name: "" });
+  const [showLinkInput, setShowLinkInput] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    setFiles((prev) => [...prev, ...selected.slice(0, 5 - prev.length)]);
+    e.target.value = "";
+  };
+
+  const addLink = () => {
+    if (!linkInput.url.trim()) return;
+    setLinks((prev) => [
+      ...prev,
+      {
+        url: linkInput.url.trim(),
+        name: linkInput.name.trim() || linkInput.url.trim(),
+      },
+    ]);
+    setLinkInput({ url: "", name: "" });
+    setShowLinkInput(false);
+  };
 
   const handleSave = async () => {
     setSaving(true);
     setFormErrors({});
     try {
-      await onSave(form);
+      await onSave({ ...form, files, links });
     } catch (err: unknown) {
       const axiosErr = err as {
         response?: {
@@ -2486,6 +2531,8 @@ const ScamForm = ({
       setSaving(false);
     }
   };
+
+  const totalSources = files.length + links.length;
 
   return (
     <div
@@ -2640,6 +2687,287 @@ const ScamForm = ({
             </p>
           )}
           <MarkdownLegend />
+        </div>
+
+        {/* Aperçu fichiers */}
+        {files.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {files.map((f, i) => {
+              const isImage = f.type.startsWith("image/");
+              const preview = isImage ? URL.createObjectURL(f) : null;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    position: "relative",
+                    width: 80,
+                    height: 80,
+                    borderRadius: 8,
+                    border: "1.5px solid #e5e7eb",
+                    overflow: "hidden",
+                    background: "#f9fafb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {preview ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <FileText size={28} color="#6B7280" aria-hidden="true" />
+                  )}
+                  <button
+                    onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
+                    aria-label={`Supprimer ${f.name}`}
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "rgba(220,38,38,0.85)",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <X size={10} color="#fff" aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Aperçu liens */}
+        {links.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {links.map((l, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  background: "#F0F9FF",
+                  border: "1px solid #BAE6FD",
+                  borderRadius: 8,
+                }}
+              >
+                <ExternalLink size={13} color="#0EA5E9" aria-hidden="true" />
+                <p
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#0369A1",
+                    margin: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {l.name}
+                </p>
+                <button
+                  onClick={() => setLinks((p) => p.filter((_, j) => j !== i))}
+                  aria-label={`Supprimer ${l.name}`}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#aaa",
+                  }}
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Saisie lien */}
+        {showLinkInput && (
+          <div
+            style={{
+              background: "#f9fafb",
+              border: "1.5px solid #e5e7eb",
+              borderRadius: 10,
+              padding: "12px 14px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label htmlFor="scam-link-url" style={{ display: "none" }}>
+                URL
+              </label>
+              <input
+                id="scam-link-url"
+                value={linkInput.url}
+                onChange={(e) =>
+                  setLinkInput({ ...linkInput, url: e.target.value })
+                }
+                placeholder="https://..."
+                type="url"
+                style={{
+                  padding: "8px 12px",
+                  border: "1.5px solid #e5e7eb",
+                  borderRadius: 7,
+                  fontSize: 13,
+                  outline: "none",
+                }}
+              />
+              <label htmlFor="scam-link-name" style={{ display: "none" }}>
+                Label
+              </label>
+              <input
+                id="scam-link-name"
+                value={linkInput.name}
+                onChange={(e) =>
+                  setLinkInput({ ...linkInput, name: e.target.value })
+                }
+                placeholder="Label (optionnel)"
+                style={{
+                  padding: "8px 12px",
+                  border: "1.5px solid #e5e7eb",
+                  borderRadius: 7,
+                  fontSize: 13,
+                  outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={addLink}
+                  style={{
+                    padding: "7px 14px",
+                    background: "#0a1d52",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 7,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Ajouter
+                </button>
+                <button
+                  onClick={() => setShowLinkInput(false)}
+                  style={{
+                    padding: "7px 14px",
+                    background: "#f3f4f6",
+                    color: "#555",
+                    border: "none",
+                    borderRadius: 7,
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Boutons pièces jointes */}
+        <div>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#555",
+              marginBottom: 8,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Preuves / ressources
+            {totalSources > 0 && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  background: "#DC2626",
+                  color: "#fff",
+                  borderRadius: 50,
+                  padding: "1px 7px",
+                  fontSize: 10,
+                }}
+              >
+                {totalSources}
+              </span>
+            )}
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={files.length >= 5}
+              aria-label={`Ajouter un fichier (${files.length}/5)`}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "1.5px dashed #DC2626",
+                background: "transparent",
+                color: "#DC2626",
+                fontSize: 12,
+                cursor: files.length >= 5 ? "not-allowed" : "pointer",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                opacity: files.length >= 5 ? 0.4 : 1,
+                minHeight: 40,
+              }}
+            >
+              <Paperclip size={13} aria-hidden="true" /> Photo / Document{" "}
+              {files.length > 0 && `(${files.length}/5)`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLinkInput(true)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "1.5px dashed #0EA5E9",
+                background: "transparent",
+                color: "#0EA5E9",
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                minHeight: 40,
+              }}
+            >
+              <LinkIcon size={13} aria-hidden="true" /> Ajouter un lien
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,application/pdf,.doc,.docx"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+          <p style={{ fontSize: 11, color: "#bbb", marginTop: 8 }}>
+            JPG, PNG, PDF, Word · Max 10 MB · Max 5 fichiers
+          </p>
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
@@ -2921,11 +3249,16 @@ export const AdminDashboard = () => {
     title: string;
     description: string;
     category: string;
+    files?: File[];
+    links?: LinkEntry[];
   }) => {
     const fd = new FormData();
     fd.append("title", data.title);
     fd.append("description", data.description);
     fd.append("category", data.category);
+    if (data.links && data.links.length > 0)
+      fd.append("links", JSON.stringify(data.links));
+    data.files?.forEach((f) => fd.append("files", f));
     const r = await api.post("/scam", fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -3913,8 +4246,70 @@ export const AdminDashboard = () => {
                               lineHeight: 1.55,
                             }}
                           >
-                            {guide.content}
+                            {stripMarkdown(guide.content)}
                           </p>
+                          {/* Indicateurs pièces jointes */}
+                          {guide.attachments &&
+                            guide.attachments.length > 0 &&
+                            (() => {
+                              const imgs = guide.attachments.filter(
+                                (a) => a.type === "image",
+                              );
+                              const docs = guide.attachments.filter(
+                                (a) => a.type === "document",
+                              );
+                              const lnks = guide.attachments.filter(
+                                (a) => a.type === "link",
+                              );
+                              return (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 6,
+                                    marginTop: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                  aria-label="Pièces jointes"
+                                >
+                                  {imgs.length > 0 && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#6B7280",
+                                        fontWeight: 500,
+                                      }}
+                                      aria-label={`${imgs.length} photo${imgs.length > 1 ? "s" : ""}`}
+                                    >
+                                      📷 {imgs.length}
+                                    </span>
+                                  )}
+                                  {docs.length > 0 && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#6B7280",
+                                        fontWeight: 500,
+                                      }}
+                                      aria-label={`${docs.length} document${docs.length > 1 ? "s" : ""}`}
+                                    >
+                                      📄 {docs.length}
+                                    </span>
+                                  )}
+                                  {lnks.length > 0 && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#6B7280",
+                                        fontWeight: 500,
+                                      }}
+                                      aria-label={`${lnks.length} lien${lnks.length > 1 ? "s" : ""}`}
+                                    >
+                                      🔗 {lnks.length}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                         </div>
                       );
                     })}
@@ -4147,8 +4542,65 @@ export const AdminDashboard = () => {
                                   overflow: "hidden",
                                 }}
                               >
-                                {tip.content}
+                                {stripMarkdown(tip.content)}
                               </p>
+                              {tip.attachments &&
+                                tip.attachments.length > 0 &&
+                                (() => {
+                                  const imgs = tip.attachments.filter(
+                                    (a) => a.type === "image",
+                                  );
+                                  const docs = tip.attachments.filter(
+                                    (a) => a.type === "document",
+                                  );
+                                  const lnks = tip.attachments.filter(
+                                    (a) => a.type === "link",
+                                  );
+                                  return (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 6,
+                                        marginTop: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      {imgs.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          📷 {imgs.length}
+                                        </span>
+                                      )}
+                                      {docs.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          📄 {docs.length}
+                                        </span>
+                                      )}
+                                      {lnks.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          🔗 {lnks.length}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                             </div>
                             <div
                               style={{ display: "flex", gap: 6, flexShrink: 0 }}
@@ -4442,8 +4894,65 @@ export const AdminDashboard = () => {
                                   overflow: "hidden",
                                 }}
                               >
-                                {scam.description}
+                                {stripMarkdown(scam.description)}
                               </p>
+                              {scam.attachments &&
+                                scam.attachments.length > 0 &&
+                                (() => {
+                                  const imgs = scam.attachments.filter(
+                                    (a) => a.type === "image",
+                                  );
+                                  const docs = scam.attachments.filter(
+                                    (a) => a.type === "document",
+                                  );
+                                  const lnks = scam.attachments.filter(
+                                    (a) => a.type === "link",
+                                  );
+                                  return (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 6,
+                                        marginTop: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      {imgs.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          📷 {imgs.length}
+                                        </span>
+                                      )}
+                                      {docs.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          📄 {docs.length}
+                                        </span>
+                                      )}
+                                      {lnks.length > 0 && (
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#6B7280",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          🔗 {lnks.length}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                             </div>
                             <div
                               style={{ display: "flex", gap: 6, flexShrink: 0 }}
@@ -4559,126 +5068,8 @@ export const AdminDashboard = () => {
                       Chargement...
                     </p>
                   ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {filteredUsers.map((u) => {
-                        const isSelected = selectedUser?.id === u.id;
-                        return (
-                          <div
-                            key={u.id}
-                            onClick={() =>
-                              setSelectedUser(isSelected ? null : u)
-                            }
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter")
-                                setSelectedUser(isSelected ? null : u);
-                            }}
-                            aria-pressed={isSelected}
-                            style={{
-                              background: "#fff",
-                              borderRadius: 12,
-                              padding: "14px 18px",
-                              cursor: "pointer",
-                              border: isSelected
-                                ? "2px solid #14539E"
-                                : "2px solid transparent",
-                              transition: "all 0.15s",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: "50%",
-                                  background:
-                                    "linear-gradient(135deg, #3ab5e6, #14539E)",
-                                  color: "#fff",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: 16,
-                                  fontWeight: 700,
-                                  flexShrink: 0,
-                                  overflow: "hidden",
-                                }}
-                                aria-hidden="true"
-                              >
-                                {u.avatarUrl ? (
-                                  <img
-                                    src={u.avatarUrl}
-                                    alt=""
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      objectFit: "cover",
-                                    }}
-                                  />
-                                ) : (
-                                  u.username[0].toUpperCase()
-                                )}
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                  }}
-                                >
-                                  <p
-                                    style={{
-                                      fontSize: 13,
-                                      fontWeight: 600,
-                                      margin: 0,
-                                      color: "#0a1d52",
-                                    }}
-                                  >
-                                    {u.username}
-                                  </p>
-                                  {u.isAdmin && (
-                                    <span
-                                      style={{
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        background: "#FEE2E2",
-                                        color: "#DC2626",
-                                        padding: "1px 6px",
-                                        borderRadius: 4,
-                                      }}
-                                    >
-                                      ADMIN
-                                    </span>
-                                  )}
-                                </div>
-                                <p
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#aaa",
-                                    margin: 0,
-                                  }}
-                                >
-                                  {u.email} · {u.originTerritory}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {filteredUsers.length === 0 && (
+                    <div>
+                      {filteredUsers.length === 0 ? (
                         <div
                           style={{
                             background: "#fff",
@@ -4690,6 +5081,238 @@ export const AdminDashboard = () => {
                           }}
                         >
                           Aucun utilisateur trouvé
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile
+                              ? "1fr"
+                              : "repeat(auto-fill, minmax(220px, 1fr))",
+                            gap: 10,
+                          }}
+                        >
+                          {filteredUsers.map((u) => {
+                            const isSelected = selectedUser?.id === u.id;
+                            const joinedDate = new Date(u.createdAt);
+                            const now = new Date();
+                            const diffMs = now.getTime() - joinedDate.getTime();
+                            const diffDays = Math.floor(diffMs / 86400000);
+                            const joinedLabel =
+                              diffDays === 0
+                                ? "Inscrit aujourd'hui"
+                                : diffDays < 30
+                                  ? `Inscrit il y a ${diffDays}j`
+                                  : diffDays < 365
+                                    ? `Inscrit il y a ${Math.floor(diffDays / 30)}mois`
+                                    : `Inscrit il y a ${Math.floor(diffDays / 365)}an${Math.floor(diffDays / 365) > 1 ? "s" : ""}`;
+                            const totalContribs =
+                              (u._count?.posts ?? 0) +
+                              (u._count?.tips ?? 0) +
+                              (u._count?.scamReports ?? 0);
+                            return (
+                              <div
+                                key={u.id}
+                                onClick={() =>
+                                  setSelectedUser(isSelected ? null : u)
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    setSelectedUser(isSelected ? null : u);
+                                }}
+                                aria-pressed={isSelected}
+                                style={{
+                                  background: "#fff",
+                                  borderRadius: 12,
+                                  padding: "16px",
+                                  cursor: "pointer",
+                                  border: isSelected
+                                    ? "2px solid #14539E"
+                                    : "2px solid transparent",
+                                  transition: "all 0.15s",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 10,
+                                }}
+                              >
+                                {/* Ligne 1 : avatar + nom + badges */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: 38,
+                                      height: 38,
+                                      borderRadius: "50%",
+                                      background:
+                                        "linear-gradient(135deg, #3ab5e6, #14539E)",
+                                      color: "#fff",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 15,
+                                      fontWeight: 700,
+                                      flexShrink: 0,
+                                      overflow: "hidden",
+                                    }}
+                                    aria-hidden="true"
+                                  >
+                                    {u.avatarUrl ? (
+                                      <img
+                                        src={u.avatarUrl}
+                                        alt=""
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    ) : (
+                                      u.username[0].toUpperCase()
+                                    )}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 5,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <p
+                                        style={{
+                                          fontSize: 13,
+                                          fontWeight: 700,
+                                          margin: 0,
+                                          color: "#0a1d52",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                          maxWidth: 110,
+                                        }}
+                                      >
+                                        {u.username}
+                                      </p>
+                                      {u.isAdmin && (
+                                        <span
+                                          style={{
+                                            fontSize: 9,
+                                            fontWeight: 700,
+                                            background: "#FEE2E2",
+                                            color: "#DC2626",
+                                            padding: "1px 5px",
+                                            borderRadius: 4,
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          ADMIN
+                                        </span>
+                                      )}
+                                      {u.isVerified && (
+                                        <span
+                                          style={{
+                                            fontSize: 9,
+                                            fontWeight: 700,
+                                            background: "#D1FAE5",
+                                            color: "#065F46",
+                                            padding: "1px 5px",
+                                            borderRadius: 4,
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          ✓
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#aaa",
+                                        margin: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {u.email}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Ligne 2 : origine + ville */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 6,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {u.originTerritory && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#555",
+                                        background: "#F3F4F6",
+                                        padding: "2px 7px",
+                                        borderRadius: 50,
+                                      }}
+                                    >
+                                      🌍 {u.originTerritory}
+                                    </span>
+                                  )}
+                                  {u.currentCity && (
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#555",
+                                        background: "#F3F4F6",
+                                        padding: "2px 7px",
+                                        borderRadius: 50,
+                                      }}
+                                    >
+                                      📍 {u.currentCity}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Ligne 3 : date inscription + contributions */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <span style={{ fontSize: 10, color: "#aaa" }}>
+                                    {joinedLabel}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 600,
+                                      color:
+                                        totalContribs > 0 ? "#14539E" : "#ccc",
+                                      background:
+                                        totalContribs > 0
+                                          ? "#E6F1FB"
+                                          : "#f3f4f6",
+                                      padding: "2px 7px",
+                                      borderRadius: 50,
+                                    }}
+                                  >
+                                    {totalContribs} contrib.
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

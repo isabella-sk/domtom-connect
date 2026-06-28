@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import type { ReactNode } from "react";
 
 interface MarkdownContentProps {
@@ -133,6 +134,7 @@ const components: Components = {
       }}
     />
   ),
+  br: () => <br style={{ display: "block", marginBottom: 4 }} />,
 };
 
 export const MarkdownContent = ({
@@ -150,7 +152,9 @@ export const MarkdownContent = ({
         listStylePosition: "outside",
       }}
     >
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown components={components} remarkPlugins={[remarkBreaks]}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 };

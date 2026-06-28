@@ -13,8 +13,8 @@ import {
   Shield,
 } from "lucide-react";
 import api from "../../services/api";
-import { MarkdownLegend } from "../../components/layout/MarkdownLegend";
 import { useAuth } from "../../hooks/useAuth";
+import { MarkdownLegend } from "../../components/layout/MarkdownLegend";
 import { Navbar } from "../../components/layout/Navbar";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { Footer } from "../../components/layout/Footer";
@@ -26,6 +26,24 @@ interface LinkEntry {
   url: string;
   name: string;
 }
+
+/** Retire la syntaxe Markdown pour un aperçu texte propre */
+const stripMarkdown = (md: string, maxLength = 160): string => {
+  const plain = md
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n+/g, " ")
+    .trim();
+  return plain.length > maxLength
+    ? plain.slice(0, maxLength).trimEnd() + "…"
+    : plain;
+};
 
 const CATEGORIES = [
   { value: "", label: "Tous" },
@@ -51,6 +69,24 @@ const GUIDE_CATEGORIES_FORM = [
 
 const PAGE_SIZE = 20;
 
+// ── Helper erreur champ ──────────────────────────────────────────────────────
+const FieldError = ({
+  name,
+  errors,
+}: {
+  name: string;
+  errors: Record<string, string>;
+}) =>
+  errors[name] ? (
+    <p
+      role="alert"
+      aria-live="polite"
+      style={{ fontSize: 12, color: "#DC2626", marginTop: 4, marginBottom: 0 }}
+    >
+      {errors[name]}
+    </p>
+  ) : null;
+
 export const Guides = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +97,6 @@ export const Guides = () => {
   const isMobile = useMobile();
   const { user } = useAuth();
 
-  // Formulaire admin
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -75,6 +110,7 @@ export const Guides = () => {
   const [links, setLinks] = useState<LinkEntry[]>([]);
   const [linkInput, setLinkInput] = useState({ url: "", name: "" });
   const [showLinkInput, setShowLinkInput] = useState(false);
+  // ── Erreurs formulaire ───────────────────────────────────────────────────
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,14 +144,12 @@ export const Guides = () => {
     setPage(1);
   };
 
-  // Fichiers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
     setFiles((prev) => [...prev, ...selected.slice(0, 5 - prev.length)]);
     e.target.value = "";
   };
 
-  // Liens
   const addLink = () => {
     if (!linkInput.url.trim()) return;
     setLinks((prev) => [
@@ -129,8 +163,8 @@ export const Guides = () => {
     setShowLinkInput(false);
   };
 
-  // Soumission guide (admin)
   const handleSubmit = async () => {
+    if (!form.title.trim() || !form.content.trim()) return;
     setSubmitting(true);
     setFormErrors({});
     try {
@@ -278,7 +312,6 @@ export const Guides = () => {
                   </p>
                 </div>
 
-                {/* Bouton publier — admins seulement */}
                 {user?.isAdmin && (
                   <button
                     onClick={() => setShowForm(!showForm)}
@@ -305,7 +338,6 @@ export const Guides = () => {
                 )}
               </div>
 
-              {/* Confirmation */}
               {submitted && (
                 <div
                   role="status"
@@ -423,18 +455,18 @@ export const Guides = () => {
                           setForm({ ...form, title: e.target.value });
                           if (formErrors.title)
                             setFormErrors((prev) => {
-                              const n = { ...prev };
-                              delete n.title;
-                              return n;
+                              const next = { ...prev };
+                              delete next.title;
+                              return next;
                             });
                         }}
                         placeholder="Ex : Comment ouvrir un compte bancaire en France"
                         required
                         aria-required="true"
-                        aria-invalid={!!formErrors.title}
                         aria-describedby={
                           formErrors.title ? "error-guide-title" : undefined
                         }
+                        aria-invalid={!!formErrors.title}
                         style={{
                           ...fInputStyle,
                           borderColor: formErrors.title ? "#DC2626" : "#e5e7eb",
@@ -473,13 +505,23 @@ export const Guides = () => {
                         <select
                           id="guide-category"
                           value={form.category}
-                          onChange={(e) =>
-                            setForm({ ...form, category: e.target.value })
-                          }
+                          onChange={(e) => {
+                            setForm({ ...form, category: e.target.value });
+                            if (formErrors.category)
+                              setFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.category;
+                                return next;
+                              });
+                          }}
+                          aria-invalid={!!formErrors.category}
                           style={{
                             ...fInputStyle,
                             background: "#fff",
                             cursor: "pointer",
+                            borderColor: formErrors.category
+                              ? "#DC2626"
+                              : "#e5e7eb",
                           }}
                         >
                           {GUIDE_CATEGORIES_FORM.map((c) => (
@@ -488,6 +530,7 @@ export const Guides = () => {
                             </option>
                           ))}
                         </select>
+                        <FieldError name="category" errors={formErrors} />
                       </div>
                       <label
                         style={{
@@ -536,29 +579,30 @@ export const Guides = () => {
                           setForm({ ...form, content: e.target.value });
                           if (formErrors.content)
                             setFormErrors((prev) => {
-                              const n = { ...prev };
-                              delete n.content;
-                              return n;
+                              const next = { ...prev };
+                              delete next.content;
+                              return next;
                             });
                         }}
                         placeholder="Rédige le guide étape par étape..."
                         rows={10}
                         required
                         aria-required="true"
-                        aria-invalid={!!formErrors.content}
                         aria-describedby={
                           formErrors.content ? "error-guide-content" : undefined
                         }
+                        aria-invalid={!!formErrors.content}
                         style={{
                           ...fInputStyle,
-                          borderColor: formErrors.content
-                            ? "#DC2626"
-                            : "#e5e7eb",
                           resize: "vertical",
                           fontFamily: "inherit",
                           lineHeight: 1.7,
+                          borderColor: formErrors.content
+                            ? "#DC2626"
+                            : "#e5e7eb",
                         }}
                       />
+                      <MarkdownLegend />
                       {formErrors.content && (
                         <p
                           id="error-guide-content"
@@ -574,7 +618,6 @@ export const Guides = () => {
                           {formErrors.content}
                         </p>
                       )}
-                      <MarkdownLegend />
                     </div>
 
                     {/* Aperçu fichiers */}
@@ -595,9 +638,7 @@ export const Guides = () => {
                                 width: 80,
                                 height: 80,
                                 borderRadius: 8,
-                                borderWidth: "1.5px",
-                                borderStyle: "solid",
-                                borderColor: "#e5e7eb",
+                                border: "1.5px solid #e5e7eb",
                                 overflow: "hidden",
                                 background: "#f9fafb",
                                 display: "flex",
@@ -715,9 +756,7 @@ export const Guides = () => {
                       <div
                         style={{
                           background: "#f9fafb",
-                          borderWidth: "1.5px",
-                          borderStyle: "solid",
-                          borderColor: "#e5e7eb",
+                          border: "1.5px solid #e5e7eb",
                           borderRadius: 10,
                           padding: "12px 14px",
                         }}
@@ -748,9 +787,7 @@ export const Guides = () => {
                             type="url"
                             style={{
                               padding: "8px 12px",
-                              borderWidth: "1.5px",
-                              borderStyle: "solid",
-                              borderColor: "#e5e7eb",
+                              border: "1.5px solid #e5e7eb",
                               borderRadius: 7,
                               fontSize: 13,
                               outline: "none",
@@ -774,9 +811,7 @@ export const Guides = () => {
                             placeholder="Label (optionnel)"
                             style={{
                               padding: "8px 12px",
-                              borderWidth: "1.5px",
-                              borderStyle: "solid",
-                              borderColor: "#e5e7eb",
+                              border: "1.5px solid #e5e7eb",
                               borderRadius: 7,
                               fontSize: 13,
                               outline: "none",
@@ -916,7 +951,11 @@ export const Guides = () => {
                       <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={submitting}
+                        disabled={
+                          submitting ||
+                          !form.title.trim() ||
+                          !form.content.trim()
+                        }
                         aria-busy={submitting}
                         style={{
                           padding: "10px 24px",
@@ -930,7 +969,12 @@ export const Guides = () => {
                           display: "flex",
                           alignItems: "center",
                           gap: 6,
-                          opacity: submitting ? 0.6 : 1,
+                          opacity:
+                            submitting ||
+                            !form.title.trim() ||
+                            !form.content.trim()
+                              ? 0.6
+                              : 1,
                           minHeight: 44,
                         }}
                       >
@@ -948,9 +992,7 @@ export const Guides = () => {
                         style={{
                           padding: "10px 20px",
                           background: "transparent",
-                          borderWidth: "1.5px",
-                          borderStyle: "solid",
-                          borderColor: "#e5e7eb",
+                          border: "1.5px solid #e5e7eb",
                           borderRadius: 8,
                           fontSize: 14,
                           cursor: "pointer",
@@ -1178,28 +1220,73 @@ export const Guides = () => {
                             overflow: "hidden",
                           }}
                         >
-                          {post.content}
+                          {stripMarkdown(post.content)}
                         </p>
-                        <p
+                        <div
                           style={{
-                            color: "#bbb",
-                            fontSize: 11,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
                             marginTop: 10,
-                            marginBottom: 0,
                           }}
                         >
-                          {post.author.username} &middot;{" "}
-                          <time dateTime={post.createdAt}>
-                            {new Date(post.createdAt).toLocaleDateString(
-                              "fr-FR",
-                            )}
-                          </time>
-                        </p>
+                          <p style={{ color: "#bbb", fontSize: 11, margin: 0 }}>
+                            {post.author.username} &middot;{" "}
+                            <time dateTime={post.createdAt}>
+                              {new Date(post.createdAt).toLocaleDateString(
+                                "fr-FR",
+                              )}
+                            </time>
+                          </p>
+                          {post.attachments &&
+                            post.attachments.length > 0 &&
+                            (() => {
+                              const imgs = post.attachments.filter(
+                                (a) => a.type === "image",
+                              );
+                              const docs = post.attachments.filter(
+                                (a) => a.type === "document",
+                              );
+                              const lnks = post.attachments.filter(
+                                (a) => a.type === "link",
+                              );
+                              return (
+                                <div
+                                  style={{ display: "flex", gap: 4 }}
+                                  aria-label="Pièces jointes"
+                                >
+                                  {imgs.length > 0 && (
+                                    <span
+                                      style={{ fontSize: 10, color: "#9CA3AF" }}
+                                      aria-label={`${imgs.length} photo${imgs.length > 1 ? "s" : ""}`}
+                                    >
+                                      📷 {imgs.length}
+                                    </span>
+                                  )}
+                                  {docs.length > 0 && (
+                                    <span
+                                      style={{ fontSize: 10, color: "#9CA3AF" }}
+                                      aria-label={`${docs.length} document${docs.length > 1 ? "s" : ""}`}
+                                    >
+                                      📄 {docs.length}
+                                    </span>
+                                  )}
+                                  {lnks.length > 0 && (
+                                    <span
+                                      style={{ fontSize: 10, color: "#9CA3AF" }}
+                                      aria-label={`${lnks.length} lien${lnks.length > 1 ? "s" : ""}`}
+                                    >
+                                      🔗 {lnks.length}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                        </div>
                       </article>
                     ))}
                   </div>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <nav
                       aria-label="Pagination"
@@ -1267,9 +1354,7 @@ const fLabelStyle: React.CSSProperties = {
 const fInputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  borderWidth: "1.5px",
-  borderStyle: "solid",
-  borderColor: "#e5e7eb",
+  border: "1.5px solid #e5e7eb",
   borderRadius: 8,
   fontSize: 14,
   color: "#0a1d52",
