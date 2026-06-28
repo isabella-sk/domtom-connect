@@ -75,6 +75,9 @@ export const createTip = async (
   next: NextFunction,
 ) => {
   try {
+    const files = (req.files as Express.Multer.File[]) ?? [];
+
+    // Validation Zod — collecte TOUTES les erreurs en une seule passe
     const result = createTipSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({
@@ -83,11 +86,11 @@ export const createTip = async (
       });
     }
 
-    const files = (req.files as Express.Multer.File[]) ?? [];
+    const { title, content, type } = result.data;
     const links = parseLinks(req.body.links);
 
     const tip = await tipsService.createTip(
-      result.data,
+      { title, content, type },
       req.userId!,
       files,
       links,

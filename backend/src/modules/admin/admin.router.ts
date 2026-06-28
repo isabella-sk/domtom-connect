@@ -6,12 +6,12 @@ import * as scamService from "../scam/scam.service";
 import * as tipsService from "../tips/tips.service";
 import * as postsService from "../posts/posts.service";
 import { attachmentUpload } from "../../utils/cloudinary";
+import { createPostSchema } from "../posts/posts.schema";
 
 export const adminRouter = Router();
 
 adminRouter.use(authenticate, requireAdmin);
 
-// Helper : parser le JSON des liens envoyé en FormData
 const parseLinks = (raw: unknown): { url: string; name?: string }[] => {
   if (!raw || typeof raw !== "string") return [];
   try {
@@ -248,44 +248,28 @@ adminRouter.get(
   },
 );
 
-// POST /admin/posts — multipart/form-data (fichiers + liens optionnels)
+// POST /admin/posts — multipart/form-data
 adminRouter.post(
   "/posts",
   attachmentUpload.array("files", 5),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { title, content, category, isPinned, links: linksRaw } = req.body;
       const files = (req.files as Express.Multer.File[]) ?? [];
-      const links = parseLinks(linksRaw);
 
-      if (!title || title.trim().length < 5)
-        return res
-          .status(400)
-          .json({ message: "Titre trop court (min 5 caractères)" });
-      if (!content || content.trim().length < 20)
-        return res
-          .status(400)
-          .json({ message: "Contenu trop court (min 20 caractères)" });
-      const validCategories = [
-        "logement",
-        "caf",
-        "sante",
-        "banque",
-        "transport",
-        "telephone",
-        "crous",
-        "autre",
-      ];
-      if (!validCategories.includes(category))
-        return res.status(400).json({ message: "Catégorie invalide" });
+      // Validation Zod — collecte TOUTES les erreurs en une seule passe
+      const result = createPostSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Données invalides",
+          errors: result.error.flatten().fieldErrors,
+        });
+      }
+
+      const { title, content, category, isPinned } = result.data;
+      const links = parseLinks(req.body.links);
 
       const post = await postsService.createPost(
-        {
-          title: title.trim(),
-          content: content.trim(),
-          category,
-          isPinned: isPinned === "true" || isPinned === true,
-        },
+        { title, content, category, isPinned },
         req.userId!,
         files,
         links,
@@ -297,7 +281,7 @@ adminRouter.post(
   },
 );
 
-// PATCH /admin/posts/:id — multipart/form-data (champs scalaires + fichiers/liens optionnels)
+// PATCH /admin/posts/:id — multipart/form-data
 adminRouter.patch(
   "/posts/:id",
   attachmentUpload.array("files", 5),
@@ -306,7 +290,6 @@ adminRouter.patch(
       const files = (req.files as Express.Multer.File[]) ?? [];
       const links = parseLinks(req.body.links);
 
-      // Construire uniquement les champs scalaires présents
       const scalarData: Record<string, unknown> = {};
       if (req.body.title !== undefined) scalarData.title = req.body.title;
       if (req.body.content !== undefined) scalarData.content = req.body.content;
@@ -345,12 +328,10 @@ adminRouter.delete(
 );
 
 // ── Attachments ───────────────────────────────────────────────────────────────
-// DELETE /admin/attachments/:id — supprime un attachment individuel (image, document, lien)
 adminRouter.delete(
   "/attachments/:id",
   async (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
     try {
-      // On cherche l'attachment dans chaque table possible
       const postAtt = await prisma.postAttachment.findUnique({
         where: { id: req.params.id },
       });
@@ -370,21 +351,17 @@ adminRouter.delete(
       if (!att)
         return res.status(404).json({ message: "Attachment introuvable" });
 
-      // Supprimer le fichier Cloudinary si ce n'est pas un lien
       if (att.type !== "link") {
         const { deleteFromCloudinary } = await import("../../utils/cloudinary");
         await deleteFromCloudinary(att.url).catch(() => {});
       }
 
-      // Supprimer en base selon la table
       if (postAtt) {
-        // Récupérer la catégorie pour invalider le bon cache Redis
         const post = await prisma.post.findUnique({
           where: { id: postAtt.postId },
           select: { category: true },
         });
         await prisma.postAttachment.delete({ where: { id: req.params.id } });
-        // Invalider le cache Redis posts
         const { redisClient } = await import("../../config/redis");
         await redisClient.del("cache:posts:all").catch(() => {});
         if (post?.category)

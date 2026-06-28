@@ -54,6 +54,9 @@ export const createPost = async (
   next: NextFunction,
 ) => {
   try {
+    const files = (req.files as Express.Multer.File[]) ?? [];
+
+    // Validation Zod - collecte TOUTES les erreurs en une seule passe
     const result = createPostSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({
@@ -62,11 +65,11 @@ export const createPost = async (
       });
     }
 
-    const files = (req.files as Express.Multer.File[]) ?? [];
-    const links = parseLinks(result.data.links);
+    const { title, content, category, isPinned } = result.data;
+    const links = parseLinks(req.body.links);
 
     const post = await postsService.createPost(
-      result.data,
+      { title, content, category, isPinned },
       req.userId!,
       files,
       links,
