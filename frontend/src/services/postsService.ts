@@ -1,5 +1,12 @@
 import api from "./api";
 
+export interface PostAttachment {
+  id: string;
+  type: string;
+  url: string;
+  name: string | null;
+}
+
 export interface Post {
   id: string;
   title: string;
@@ -8,6 +15,7 @@ export interface Post {
   isPinned: boolean;
   createdAt: string;
   author: { id: string; username: string; avatarUrl?: string };
+  attachments: PostAttachment[];
 }
 
 export const postsService = {
