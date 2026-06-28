@@ -214,7 +214,7 @@ export const getFollowers = async (userId: string) => {
     },
     orderBy: { createdAt: "desc" },
   });
-  return follows.map((f) => f.follower);
+  return follows.map((f: (typeof follows)[number]) => f.follower);
 };
 
 export const getFollowing = async (userId: string) => {
@@ -233,7 +233,7 @@ export const getFollowing = async (userId: string) => {
     },
     orderBy: { createdAt: "desc" },
   });
-  return follows.map((f) => f.following);
+  return follows.map((f: (typeof follows)[number]) => f.following);
 };
 
 type NearbyUser = {
@@ -310,7 +310,9 @@ export const getMapUsers = async (currentUserId: string) => {
       // "none" → ne pas afficher
       return false;
     })
-    .map(({ mapVisibility: _mv, ...rest }) => rest); // ne pas exposer mapVisibility
+    .map(
+      ({ mapVisibility: _mv, ...rest }: (typeof allMapUsers)[number]) => rest,
+    ); // ne pas exposer mapVisibility
 };
 
 export const uploadAvatar = async (

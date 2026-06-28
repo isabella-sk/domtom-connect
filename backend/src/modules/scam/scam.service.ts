@@ -114,8 +114,10 @@ export const deleteScam = async (
   // Supprimer les fichiers Cloudinary
   await Promise.all(
     report.attachments
-      .filter((a) => a.type !== "link")
-      .map((a) => deleteFromCloudinary(a.url)),
+      .filter((a: (typeof report.attachments)[number]) => a.type !== "link")
+      .map((a: (typeof report.attachments)[number]) =>
+        deleteFromCloudinary(a.url),
+      ),
   );
 
   await prisma.scamReport.delete({ where: { id } });

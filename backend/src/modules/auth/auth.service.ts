@@ -11,7 +11,7 @@ import type { RegisterDto, LoginDto } from "./auth.schema";
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL = 7 * 24 * 60 * 60;
 
-const sanitize = (user: any) => {
+const sanitize = (user: Record<string, unknown>) => {
   const { passwordHash, ...safe } = user;
   return safe;
 };

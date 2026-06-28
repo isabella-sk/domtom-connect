@@ -116,8 +116,10 @@ export const deleteTip = async (
 
   await Promise.all(
     tip.attachments
-      .filter((a) => a.type !== "link")
-      .map((a) => deleteFromCloudinary(a.url)),
+      .filter((a: (typeof tip.attachments)[number]) => a.type !== "link")
+      .map((a: (typeof tip.attachments)[number]) =>
+        deleteFromCloudinary(a.url),
+      ),
   );
 
   await prisma.tip.delete({ where: { id } });

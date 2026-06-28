@@ -28,7 +28,9 @@ export const getConversations = async (userId: string) => {
   // Filtrer les messages supprimés pour cet user
   return convs.map((conv) => ({
     ...conv,
-    messages: conv.messages.filter((m) => !m.deletedForIds.includes(userId)),
+    messages: conv.messages.filter(
+      (m: (typeof conv.messages)[number]) => !m.deletedForIds.includes(userId),
+    ),
   }));
 };
 
