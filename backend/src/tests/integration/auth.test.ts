@@ -140,16 +140,14 @@ describe("Auth — /api/auth", () => {
   // POST /refresh
 
   describe("POST /api/auth/refresh", () => {
-    it("200 — retourne un nouveau accessToken avec un refreshToken valide", async () => {
-      // On récupère le cookie refreshToken lors du register
-      const registerRes = await request(app).post("/api/auth/register").send({
-        email: "refresh@example.com",
-        username: "refreshuser",
-        password: "Password123!",
-        originTerritory: "Réunion",
-      });
+    it("200 - retourne un nouveau accessToken avec un refreshToken valide", async () => {
+      // Utilise createUser() puis re-login pour obtenir le cookie
+      const user = await createUser();
+      const loginRes = await request(app)
+        .post("/api/auth/login")
+        .send({ email: user.email, password: user.password });
 
-      const cookies = registerRes.headers["set-cookie"];
+      const cookies = loginRes.headers["set-cookie"];
       const res = await request(app)
         .post("/api/auth/refresh")
         .set("Cookie", cookies);

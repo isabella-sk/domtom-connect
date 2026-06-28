@@ -9,8 +9,7 @@ export interface TestUser {
   accessToken: string;
 }
 
-//Factories
-let userCounter = 0;
+const uid = () => `${Date.now()}${Math.floor(Math.random() * 100000)}`;
 
 /**
  * Crée et inscrit un utilisateur de test via l'API.
@@ -24,10 +23,10 @@ export const createUser = async (
     originTerritory: string;
   }> = {},
 ): Promise<TestUser & { password: string }> => {
-  const n = ++userCounter;
+  const id = uid();
   const payload = {
-    email: overrides.email ?? `test${n}@example.com`,
-    username: overrides.username ?? `testuser${n}`,
+    email: overrides.email ?? `test${id}@example.com`,
+    username: overrides.username ?? `testuser${id}`,
     password: overrides.password ?? "Password123!",
     originTerritory: overrides.originTerritory ?? "Martinique",
   };
@@ -58,9 +57,10 @@ export const createAdminUser = async (): Promise<
 > => {
   // Import ici pour éviter les imports circulaires dans les tests
   const { prisma } = await import("../config/database");
+  const id = uid();
   const user = await createUser({
-    username: `admin${Date.now()}`,
-    email: `admin${Date.now()}@example.com`,
+    username: `admin${id}`,
+    email: `admin${id}@example.com`,
   });
   await prisma.user.update({ where: { id: user.id }, data: { isAdmin: true } });
 

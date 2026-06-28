@@ -167,7 +167,7 @@ export const followUser = async (
 ) => {
   try {
     const result = await usersService.followUser(req.userId!, req.params.id);
-    res.json(result);
+    res.status(201).json(result);
   } catch (err) {
     next(err);
   }

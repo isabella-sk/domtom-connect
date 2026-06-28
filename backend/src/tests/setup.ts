@@ -1,19 +1,25 @@
 import { prisma } from "../config/database";
 import { redisClient } from "../config/redis";
 
-// Connexion Redis avant les tests
-beforeAll(async () => {
-  await redisClient.connect();
-});
+// Ioredis se connecte automatiquement (lazyConnect + premier appel)
+// Pas besoin de .connect() manuel
 
-// Nettoyage entre chaque test
 afterEach(async () => {
+  await prisma.scamAttachment.deleteMany();
+  await prisma.scamReport.deleteMany();
+  await prisma.tipAttachment.deleteMany();
+  await prisma.tip.deleteMany();
+  await prisma.postAttachment.deleteMany().catch(() => {});
+  await prisma.post.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.conversationMember.deleteMany();
   await prisma.conversation.deleteMany();
+  await prisma.follow.deleteMany();
+  await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
   await redisClient.flushdb();
 });
 
-// Fermeture propre
 afterAll(async () => {
   await prisma.$disconnect();
   await redisClient.quit();

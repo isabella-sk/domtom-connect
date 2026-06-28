@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 
 export interface TokenPayload {
   userId: string;
@@ -10,7 +11,7 @@ export const generateAccessToken = (userId: string): string =>
   });
 
 export const generateRefreshToken = (userId: string): string =>
-  jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, {
+  jwt.sign({ userId, jti: randomUUID() }, process.env.JWT_REFRESH_SECRET!, {
     expiresIn: process.env.JWT_REFRESH_EXPIRES! as any,
   });
 
