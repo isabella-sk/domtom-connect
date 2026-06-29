@@ -21,7 +21,7 @@ jobs:
           POSTGRES_PASSWORD: domtom_connect_pass
         ports: ["5432:5432"]
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U domtom_connect_user -d domtom_connect_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
