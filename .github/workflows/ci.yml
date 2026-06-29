@@ -58,10 +58,6 @@ jobs:
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
-      - name: Vérifier connexion PostgreSQL
-        run: |
-          PGPASSWORD=domtom_connect_pass psql -h localhost -p 5432 -U domtom_connect_user -d domtom_connect_test -c "SELECT 1"
-
       - name: Installer les dépendances
         run: cd backend && npm ci
 
