@@ -15,3 +15,8 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+// Connexion explicite pour éviter ECONNREFUSED au premier appel (CI)
+if (process.env.NODE_ENV === "test") {
+  prisma.$connect().catch(() => {});
+}
