@@ -3,7 +3,7 @@ import { redisClient } from "../config/redis";
 
 beforeAll(async () => {
   await prisma.$connect();
-});
+}, 30000);
 
 afterEach(async () => {
   await prisma.scamAttachment.deleteMany();
