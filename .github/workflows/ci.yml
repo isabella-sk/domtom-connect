@@ -58,6 +58,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
+      - name: Attendre PostgreSQL
+        run: until pg_isready -h localhost -p 5432; do sleep 1; done
+
       - name: Installer les dépendances
         run: cd backend && npm ci
 
@@ -87,7 +90,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "20" }
       - name: Backend TypeScript
-        run: cd backend && npm ci && npx tsc --noEmit
+        run: cd backend && npm ci && npx prisma generate && npx tsc --noEmit
       - name: Frontend TypeScript
         run: cd frontend && npm ci && npx tsc -b
 
