@@ -1,19 +1,8 @@
 import { prisma } from "../config/database";
 import { redisClient } from "../config/redis";
 
-beforeAll(async () => {
-  // Attendre que PostgreSQL soit prêt (important en CI avec PrismaPg)
-  let retries = 10;
-  while (retries > 0) {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      break;
-    } catch {
-      retries--;
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
-  }
-});
+// Ioredis se connecte automatiquement (lazyConnect + premier appel)
+// Pas besoin de .connect() manuel
 
 afterEach(async () => {
   await prisma.scamAttachment.deleteMany();

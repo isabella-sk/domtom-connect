@@ -58,14 +58,6 @@ jobs:
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
-      - name: Attendre PostgreSQL
-        run: |
-          for i in $(seq 1 30); do
-            pg_isready -h localhost -p 5432 -U domtom_connect_user && echo "PostgreSQL prêt" && break
-            echo "Tentative $i/30..."
-            sleep 2
-          done
-
       - name: Vérifier connexion PostgreSQL
         run: |
           PGPASSWORD=domtom_connect_pass psql -h localhost -p 5432 -U domtom_connect_user -d domtom_connect_test -c "SELECT 1"
