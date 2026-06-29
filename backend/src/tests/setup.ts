@@ -1,8 +1,9 @@
 import { prisma } from "../config/database";
 import { redisClient } from "../config/redis";
 
-// Ioredis se connecte automatiquement (lazyConnect + premier appel)
-// Pas besoin de .connect() manuel
+beforeAll(async () => {
+  await prisma.$connect();
+});
 
 afterEach(async () => {
   await prisma.scamAttachment.deleteMany();
